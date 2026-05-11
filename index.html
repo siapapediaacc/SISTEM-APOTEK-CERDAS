@@ -2,79 +2,49 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Measure Pro</title>
+<title>AI Measure Debug</title>
 
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2"></script>
 
 <style>
-body {
-  margin:0;
-  background:black;
-  font-family:-apple-system;
-}
+body { margin:0; background:black; color:white; font-family:sans-serif; }
 
-/* VIDEO */
-video {
+video, canvas {
   position:fixed;
   top:0;
   left:0;
   width:100%;
   height:100%;
   object-fit:cover;
-  z-index:1;
 }
 
-/* CANVAS */
-canvas {
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
-  z-index:2;
-}
+canvas { z-index:2; }
+video { z-index:1; }
 
-/* UI PANEL */
 .ui {
   position:fixed;
   bottom:20px;
   left:50%;
   transform:translateX(-50%);
-  z-index:999; /* 🔥 penting */
-  background:rgba(0,0,0,0.5);
+  z-index:999;
+  background:rgba(0,0,0,0.6);
   padding:10px;
-  border-radius:20px;
-  backdrop-filter: blur(10px);
+  border-radius:15px;
 }
 
-/* BUTTON */
 button {
-  padding:10px 15px;
+  padding:10px;
   margin:5px;
   border:none;
-  border-radius:15px;
-  font-size:14px;
+  border-radius:10px;
 }
 
-.primary {
-  background:white;
-  color:black;
-}
-
-.secondary {
-  background:rgba(255,255,255,0.2);
-  color:white;
-}
-
-/* TEXT */
-.measure {
+.status {
   position:fixed;
-  top:40px;
+  top:10px;
   width:100%;
   text-align:center;
-  color:white;
-  font-size:18px;
   z-index:999;
 }
 </style>
@@ -82,66 +52,81 @@ button {
 
 <body>
 
+<div class="status" id="status">Klik layar untuk mulai</div>
+
 <video id="video" autoplay playsinline></video>
 <canvas id="canvas"></canvas>
 
-<div class="measure" id="info">Deteksi objek aktif...</div>
-
 <div class="ui">
-  <button class="primary" onclick="alert('Start')">Start</button>
-  <button class="primary" onclick="alert('Stop')">Stop</button>
-  <button class="secondary" onclick="alert('Reset')">Reset</button>
+  <button onclick="startApp()">START</button>
 </div>
 
 <script>
-const video = document.getElementById("video");
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
+let video = document.getElementById("video");
+let canvas = document.getElementById("canvas");
+let ctx = canvas.getContext("2d");
+let statusText = document.getElementById("status");
 
 let model;
+let running = false;
 
-// kamera
-navigator.mediaDevices.getUserMedia({
-  video: { facingMode: "environment" }
-}).then(stream => {
-  video.srcObject = stream;
-});
+// WAJIB: trigger manual
+async function startApp() {
+  statusText.innerText = "Mengaktifkan kamera...";
 
-// ukuran canvas
-video.onloadedmetadata = () => {
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-};
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" }
+    });
+    video.srcObject = stream;
 
-// load AI
-async function loadModel() {
-  model = await cocoSsd.load();
-  detect();
+    video.onloadedmetadata = () => {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+    };
+
+    statusText.innerText = "Load AI model...";
+    model = await cocoSsd.load();
+
+    statusText.innerText = "AI aktif ✔";
+    running = true;
+    detect();
+
+  } catch (e) {
+    statusText.innerText = "ERROR: " + e.message;
+  }
 }
 
-// deteksi objek
 async function detect() {
+  if (!running) return;
+
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-  const predictions = await model.detect(video);
+  try {
+    const predictions = await model.detect(video);
 
-  predictions.forEach(p => {
-    if (p.score > 0.6) {
-      let [x, y, w, h] = p.bbox;
+    predictions.forEach(p => {
+      if (p.score > 0.6) {
+        let [x, y, w, h] = p.bbox;
 
-      ctx.strokeStyle = "lime";
-      ctx.lineWidth = 3;
-      ctx.strokeRect(x, y, w, h);
+        ctx.strokeStyle = "lime";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x, y, w, h);
 
-      ctx.fillStyle = "lime";
-      ctx.fillText(p.class, x, y - 5);
-    }
-  });
+        ctx.fillStyle = "lime";
+        ctx.font = "16px Arial";
+        ctx.fillText(p.class, x, y - 5);
+      }
+    });
+
+    statusText.innerText = "Objek terdeteksi: " + predictions.length;
+
+  } catch (err) {
+    statusText.innerText = "Deteksi error";
+  }
 
   requestAnimationFrame(detect);
 }
-
-loadModel();
 </script>
 
 </body>
