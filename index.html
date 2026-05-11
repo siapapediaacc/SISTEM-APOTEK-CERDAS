@@ -1,195 +1,176 @@
 <!DOCTYPE html>
-<html lang="id">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meteran Digital Akurat</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; background: #f4f4f9; margin: 0; padding: 20px; }
-        .container { position: relative; display: inline-block; margin-top: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
-        video, canvas { display: block; border-radius: 8px; }
-        canvas { position: absolute; top: 0; left: 0; cursor: crosshair; }
-        .controls { margin-top: 20px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
-        button { padding: 10px 20px; border: none; border-radius: 5px; background: #007bff; color: white; cursor: pointer; font-weight: bold; }
-        button:hover { background: #0056b3; }
-        button.active { background: #28a745; }
-        .info-panel { margin-top: 20px; padding: 15px; background: white; border-radius: 8px; border: 1px solid #ccc; max-width: 500px; margin-left: auto; margin-right: auto; }
-        h3 { margin-top: 0; }
-    </style>
+<meta charset="UTF-8">
+<title>Meteran Digital AI (KTP)</title>
+<script async src="https://docs.opencv.org/4.x/opencv.js"></script>
+<style>
+body { margin:0; background:#000; color:#0f0; font-family:Arial; }
+#canvas { position:absolute; top:0; left:0; }
+#ui {
+  position:fixed; bottom:10px; left:10px;
+}
+button {
+  padding:10px; margin:5px;
+  font-size:14px;
+}
+</style>
 </head>
 <body>
 
-    <h2>Meteran Digital Kamera</h2>
-    <p>Gunakan KTP/Kartu ATM sebagai referensi (Panjang standar 8.56 cm).</p>
+<video id="video" autoplay playsinline style="display:none;"></video>
+<canvas id="canvas"></canvas>
 
-    <div class="controls">
-        <button id="btnCapture" onclick="captureImage()">1. Ambil Gambar</button>
-        <button id="btnCalibrate" onclick="setMode('calibrate')" disabled>2. Kalibrasi (Ukur KTP)</button>
-        <button id="btnLength" onclick="setMode('length')" disabled>3. Ukur Panjang</button>
-        <button id="btnArea" onclick="setMode('area')" disabled>4. Ukur Luas (Kotak)</button>
-        <button onclick="resetCanvas()">Reset Garis</button>
-    </div>
+<div id="ui">
+  <button onclick="startCalibration()">Scan KTP</button>
+  <button onclick="measureMode()">Mode Ukur</button>
+  <button onclick="resetPoints()">Reset</button>
+  <div id="info">Status: Idle</div>
+</div>
 
-    <div class="container" id="mediaContainer">
-        <video id="camera" width="640" height="480" autoplay playsinline></video>
-        <canvas id="overlay" width="640" height="480"></canvas>
-    </div>
+<script>
+let video = document.getElementById('video');
+let canvas = document.getElementById('canvas');
+let ctx = canvas.getContext('2d');
 
-    <div class="info-panel">
-        <h3>Hasil Pengukuran</h3>
-        <p id="status">Status: Kamera aktif. Harap letakkan benda & KTP, lalu "Ambil Gambar".</p>
-        <p><strong>Skala Referensi:</strong> <span id="scaleValue">-</span> cm/px</p>
-        <p><strong>Panjang Benda:</strong> <span id="lengthValue">-</span> cm</p>
-        <p><strong>Luas Benda:</strong> <span id="areaValue">-</span> cm²</p>
-    </div>
+let scale = 0;
+let points = [];
+let measuring = false;
 
-    <script>
-        const video = document.getElementById('camera');
-        const canvas = document.getElementById('overlay');
-        const ctx = canvas.getContext('2d');
-        
-        let mode = 'idle'; // idle, calibrate, length, area
-        let points = [];
-        let imageCaptured = false;
-        let scaleCmPerPx = 0;
-        const REFERENCE_REAL_WIDTH_CM = 8.56; // Panjang standar KTP/ATM
+// START CAMERA
+navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+.then(stream => {
+  video.srcObject = stream;
+  video.play();
+});
 
-        // Inisialisasi Kamera
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-            .then(stream => { video.srcObject = stream; })
-            .catch(err => { alert("Error akses kamera: " + err); });
+// LOOP
+function processFrame() {
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
 
-        function captureImage() {
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            video.pause();
-            imageCaptured = true;
-            document.getElementById('status').innerText = "Status: Gambar ditangkap. Pilih 'Kalibrasi' untuk mulai.";
-            document.getElementById('btnCalibrate').disabled = false;
-            document.getElementById('btnCapture').innerText = "Ulangi Kamera";
-            document.getElementById('btnCapture').onclick = restartCamera;
+  ctx.drawImage(video, 0, 0);
+
+  if (typeof cv !== 'undefined') {
+    let src = cv.imread(canvas);
+    let gray = new cv.Mat();
+    let edges = new cv.Mat();
+
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+    cv.Canny(gray, edges, 50, 150);
+
+    let contours = new cv.MatVector();
+    let hierarchy = new cv.Mat();
+
+    cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+    let maxArea = 0;
+    let bestRect = null;
+
+    for (let i = 0; i < contours.size(); i++) {
+      let cnt = contours.get(i);
+      let area = cv.contourArea(cnt);
+
+      if (area > maxArea) {
+        let approx = new cv.Mat();
+        cv.approxPolyDP(cnt, approx, 0.02 * cv.arcLength(cnt, true), true);
+
+        if (approx.rows === 4) {
+          maxArea = area;
+          bestRect = approx;
         }
+      }
+    }
 
-        function restartCamera() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            video.play();
-            imageCaptured = false;
-            scaleCmPerPx = 0;
-            resetCanvas();
-            document.getElementById('status').innerText = "Status: Kamera aktif.";
-            document.getElementById('btnCapture').innerText = "1. Ambil Gambar";
-            document.getElementById('btnCapture').onclick = captureImage;
-            disableButtons();
-        }
+    if (bestRect && !scale) {
+      drawRect(bestRect);
 
-        function disableButtons() {
-            document.getElementById('btnCalibrate').disabled = true;
-            document.getElementById('btnLength').disabled = true;
-            document.getElementById('btnArea').disabled = true;
-        }
+      let width = distance(
+        bestRect.data32S[0], bestRect.data32S[1],
+        bestRect.data32S[2], bestRect.data32S[3]
+      );
 
-        function setMode(newMode) {
-            if (!imageCaptured) return alert("Ambil gambar terlebih dahulu!");
-            mode = newMode;
-            points = [];
-            document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
-            document.getElementById('btn' + newMode.charAt(0).toUpperCase() + newMode.slice(1)).classList.add('active');
-            
-            let statusText = "";
-            if(mode === 'calibrate') statusText = "Klik 2 ujung pada kartu KTP untuk kalibrasi.";
-            if(mode === 'length') statusText = "Klik 2 ujung pada benda target untuk mengukur panjangnya.";
-            if(mode === 'area') statusText = "Klik 2 ujung diagonal pada benda target untuk mengukur luas (persegi panjang).";
-            document.getElementById('status').innerText = "Status: " + statusText;
-        }
+      scale = width / 8.56; // cm
+      document.getElementById('info').innerText = "Skala terdeteksi";
+    }
 
-        function resetCanvas() {
-            points = [];
-            if (imageCaptured) {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height); // Restore image
-            }
-        }
+    src.delete(); gray.delete(); edges.delete();
+    contours.delete(); hierarchy.delete();
+  }
 
-        canvas.addEventListener('mousedown', (e) => {
-            if (mode === 'idle' || !imageCaptured) return;
-            
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            
-            points.push({x, y});
-            drawPoint(x, y);
+  drawPoints();
 
-            if (points.length === 2) {
-                drawLine(points[0], points[1]);
-                processMeasurement();
-                points = []; // Reset for next measurement
-            }
-        });
+  requestAnimationFrame(processFrame);
+}
 
-        function drawPoint(x, y) {
-            ctx.beginPath();
-            ctx.arc(x, y, 4, 0, 2 * Math.PI);
-            ctx.fillStyle = "red";
-            ctx.fill();
-        }
+function drawRect(rect) {
+  ctx.strokeStyle = "lime";
+  ctx.lineWidth = 3;
 
-        function drawLine(p1, p2) {
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.strokeStyle = "yellow";
-            ctx.lineWidth = 2;
-            ctx.stroke();
-        }
+  for (let i = 0; i < 4; i++) {
+    let x1 = rect.data32S[i*2];
+    let y1 = rect.data32S[i*2+1];
+    let x2 = rect.data32S[((i+1)%4)*2];
+    let y2 = rect.data32S[((i+1)%4)*2+1];
 
-        function processMeasurement() {
-            const p1 = points[0];
-            const p2 = points[1];
-            // Rumus Euclidean Distance
-            const pixelDistance = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+}
 
-            if (mode === 'calibrate') {
-                scaleCmPerPx = REFERENCE_REAL_WIDTH_CM / pixelDistance;
-                document.getElementById('scaleValue').innerText = scaleCmPerPx.toFixed(5);
-                document.getElementById('btnLength').disabled = false;
-                document.getElementById('btnArea').disabled = false;
-                document.getElementById('status').innerText = "Status: Kalibrasi sukses. Silakan ukur benda target.";
-            } 
-            else if (mode === 'length') {
-                if (scaleCmPerPx === 0) return alert("Harap kalibrasi KTP terlebih dahulu!");
-                const realLengthCm = pixelDistance * scaleCmPerPx;
-                document.getElementById('lengthValue').innerText = realLengthCm.toFixed(2);
-                drawText(realLengthCm.toFixed(2) + " cm", (p1.x + p2.x)/2, (p1.y + p2.y)/2);
-            }
-            else if (mode === 'area') {
-                if (scaleCmPerPx === 0) return alert("Harap kalibrasi KTP terlebih dahulu!");
-                const pixelWidth = Math.abs(p2.x - p1.x);
-                const pixelHeight = Math.abs(p2.y - p1.y);
-                // Area = (width_px * scale) * (height_px * scale)
-                const realAreaCm2 = (pixelWidth * scaleCmPerPx) * (pixelHeight * scaleCmPerPx);
-                
-                // Draw bounding box
-                ctx.beginPath();
-                ctx.rect(Math.min(p1.x, p2.x), Math.min(p1.y, p2.y), pixelWidth, pixelHeight);
-                ctx.strokeStyle = "rgba(0, 255, 0, 0.6)";
-                ctx.lineWidth = 2;
-                ctx.stroke();
+function startCalibration() {
+  scale = 0;
+  document.getElementById('info').innerText = "Scanning KTP...";
+}
 
-                document.getElementById('areaValue').innerText = realAreaCm2.toFixed(2);
-                drawText(realAreaCm2.toFixed(2) + " cm²", (p1.x + p2.x)/2, (p1.y + p2.y)/2);
-            }
-        }
+function measureMode() {
+  measuring = true;
+  document.getElementById('info').innerText = "Mode Ukur Aktif";
+}
 
-        function drawText(text, x, y) {
-            ctx.font = "16px Arial";
-            ctx.fillStyle = "white";
-            ctx.shadowColor = "black";
-            ctx.shadowBlur = 4;
-            ctx.shadowOffsetX = 2;
-            ctx.shadowOffsetY = 2;
-            ctx.fillText(text, x + 10, y - 10);
-            ctx.shadowBlur = 0; // reset
-        }
-    </script>
+canvas.addEventListener('click', function(e) {
+  if (!measuring || !scale) return;
+
+  let rect = canvas.getBoundingClientRect();
+  let x = e.clientX - rect.left;
+  let y = e.clientY - rect.top;
+
+  points.push({x,y});
+});
+
+function drawPoints() {
+  ctx.fillStyle = "red";
+
+  for (let p of points) {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 5, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  if (points.length >= 2 && scale) {
+    let p1 = points[points.length-2];
+    let p2 = points[points.length-1];
+
+    let d = distance(p1.x, p1.y, p2.x, p2.y);
+    let cm = d / scale;
+
+    ctx.fillStyle = "yellow";
+    ctx.fillText(cm.toFixed(2) + " cm", p2.x+10, p2.y);
+  }
+}
+
+function distance(x1,y1,x2,y2){
+  return Math.sqrt((x2-x1)**2 + (y2-y1)**2);
+}
+
+function resetPoints(){
+  points = [];
+}
+
+video.addEventListener('play', processFrame);
+</script>
+
 </body>
 </html>
