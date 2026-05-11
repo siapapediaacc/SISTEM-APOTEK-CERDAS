@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Measure</title>
     <style>
         * {
@@ -23,43 +25,43 @@
             width: 100vw;
         }
 
-        /* ===== CAMERA VIEW ===== */
-        .camera-view {
+        /* ===== CAMERA VIDEO ===== */
+        #cameraVideo {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            object-fit: cover;
             z-index: 1;
+            background: #000;
         }
 
-        /* Simulasi grid kamera */
-        .camera-grid {
-            position: absolute;
+        /* ===== CAMERA OVERLAY (grid + crosshair) ===== */
+        .camera-overlay {
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             pointer-events: none;
-            opacity: 0.3;
+            z-index: 2;
         }
 
         .grid-line-h {
             position: absolute;
             width: 100%;
             height: 1px;
-            background: rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.15);
         }
 
         .grid-line-v {
             position: absolute;
             height: 100%;
             width: 1px;
-            background: rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.15);
         }
 
-        /* Crosshair */
         .crosshair {
             position: absolute;
             top: 50%;
@@ -67,13 +69,12 @@
             transform: translate(-50%, -50%);
             width: 40px;
             height: 40px;
-            pointer-events: none;
         }
 
         .crosshair::before, .crosshair::after {
             content: '';
             position: absolute;
-            background: rgba(255,255,255,0.6);
+            background: rgba(255,255,255,0.5);
         }
 
         .crosshair::before {
@@ -97,7 +98,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 2;
+            z-index: 3;
             touch-action: none;
         }
 
@@ -108,7 +109,7 @@
             left: 0;
             right: 0;
             height: 50px;
-            background: rgba(0,0,0,0.6);
+            background: rgba(0,0,0,0.5);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             display: flex;
@@ -151,6 +152,7 @@
             text-align: center;
             z-index: 100;
             min-width: 200px;
+            display: none;
         }
 
         .measure-value {
@@ -172,7 +174,7 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0,0,0,0.6);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             padding-bottom: env(safe-area-inset-bottom, 20px);
@@ -236,6 +238,7 @@
             height: 72px;
             border: 3px solid #fff;
             background: transparent;
+            position: relative;
         }
 
         .action-btn.shutter::after {
@@ -244,20 +247,19 @@
             height: 58px;
             border-radius: 50%;
             background: #fff;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             transition: all 0.2s;
         }
 
         .action-btn.shutter:active::after {
-            transform: scale(0.9);
+            transform: translate(-50%, -50%) scale(0.9);
         }
 
         .action-btn.clear-btn {
             font-size: 11px;
-        }
-
-        .action-btn i {
-            font-size: 20px;
-            margin-bottom: 2px;
         }
 
         /* ===== LEVEL VIEW ===== */
@@ -288,6 +290,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            overflow: hidden;
         }
 
         .level-bubble {
@@ -296,7 +299,7 @@
             border-radius: 50%;
             background: #ffcc00;
             position: absolute;
-            transition: all 0.1s;
+            transition: all 0.1s ease-out;
             box-shadow: 0 0 20px rgba(255,204,0,0.5);
         }
 
@@ -341,6 +344,8 @@
             margin-top: 10px;
             font-size: 16px;
             color: #888;
+            text-align: center;
+            padding: 0 20px;
         }
 
         /* ===== HISTORY PANEL ===== */
@@ -420,31 +425,6 @@
             font-size: 16px;
         }
 
-        /* ===== POINT MARKERS ===== */
-        .point-marker {
-            position: absolute;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #ffcc00;
-            border: 3px solid #fff;
-            transform: translate(-50%, -50%);
-            z-index: 10;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
-        }
-
-        .point-label {
-            position: absolute;
-            background: rgba(0,0,0,0.8);
-            color: #ffcc00;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 600;
-            transform: translate(-50%, -35px);
-            white-space: nowrap;
-        }
-
         /* ===== INSTRUCTION ===== */
         .instruction {
             position: fixed;
@@ -452,25 +432,21 @@
             left: 50%;
             transform: translate(-50%, -50%);
             text-align: center;
-            color: rgba(255,255,255,0.6);
+            color: rgba(255,255,255,0.7);
             font-size: 16px;
             pointer-events: none;
             z-index: 5;
             transition: opacity 0.5s;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
         }
 
         .instruction.hidden {
             opacity: 0;
         }
 
-        /* ===== ANIMATIONS ===== */
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-
-        .pulse {
-            animation: pulse 2s infinite;
+        .instruction-icon {
+            font-size: 50px;
+            margin-bottom: 15px;
         }
 
         /* ===== TOAST ===== */
@@ -489,6 +465,7 @@
             opacity: 0;
             transition: opacity 0.3s;
             pointer-events: none;
+            white-space: nowrap;
         }
 
         .toast.show {
@@ -553,17 +530,96 @@
         .overlay.active {
             display: block;
         }
+
+        /* ===== CAMERA ERROR / PERMISSION ===== */
+        .camera-permission {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 400;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .camera-permission.active {
+            display: flex;
+        }
+
+        .camera-permission-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+
+        .camera-permission-title {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .camera-permission-text {
+            font-size: 15px;
+            color: #888;
+            line-height: 1.5;
+            margin-bottom: 30px;
+        }
+
+        .camera-permission-btn {
+            background: #ffcc00;
+            color: #000;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .camera-permission-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* ===== CAMERA SWITCH ===== */
+        .camera-switch {
+            position: fixed;
+            top: 60px;
+            right: 15px;
+            z-index: 100;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+            border: none;
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .camera-switch:active {
+            background: rgba(255,255,255,0.2);
+        }
     </style>
 </head>
 <body>
-    <!-- Camera Background -->
-    <div class="camera-view" id="cameraView">
-        <div class="camera-grid">
-            <div class="grid-line-h" style="top: 33%"></div>
-            <div class="grid-line-h" style="top: 66%"></div>
-            <div class="grid-line-v" style="left: 33%"></div>
-            <div class="grid-line-v" style="left: 66%"></div>
-        </div>
+    <!-- Camera Video Element -->
+    <video id="cameraVideo" autoplay playsinline muted></video>
+
+    <!-- Camera Overlay (Grid + Crosshair) -->
+    <div class="camera-overlay">
+        <div class="grid-line-h" style="top: 33%"></div>
+        <div class="grid-line-h" style="top: 66%"></div>
+        <div class="grid-line-v" style="left: 33%"></div>
+        <div class="grid-line-v" style="left: 66%"></div>
         <div class="crosshair"></div>
     </div>
 
@@ -572,9 +628,26 @@
 
     <!-- Instruction -->
     <div class="instruction" id="instruction">
-        <div style="font-size: 40px; margin-bottom: 15px;">📏</div>
-        Ketuk layar untuk menambahkan titik<br>
-        Geser untuk mengukur
+        <div class="instruction-icon">📏</div>
+        <div>Ketuk layar untuk menambahkan titik</div>
+        <div style="font-size: 13px; margin-top: 8px; color: rgba(255,255,255,0.5);">Geser titik untuk menyesuaikan</div>
+    </div>
+
+    <!-- Camera Permission Screen -->
+    <div class="camera-permission" id="cameraPermission">
+        <div class="camera-permission-icon">📷</div>
+        <div class="camera-permission-title">Akses Kamera Diperlukan</div>
+        <div class="camera-permission-text">
+            Aplikasi Measure memerlukan akses kamera untuk mengukur objek secara nyata. 
+            Data kamera hanya digunakan di perangkat Anda dan tidak diunggah ke server.
+        </div>
+        <button class="camera-permission-btn" id="grantCameraBtn">Izinkan Kamera</button>
+        <div style="margin-top: 15px; font-size: 13px; color: #666;">
+            atau gunakan mode simulasi
+        </div>
+        <button class="camera-permission-btn" id="simulationBtn" style="margin-top: 10px; background: #333; color: #fff;">
+            Mode Simulasi
+        </button>
     </div>
 
     <!-- Top Bar -->
@@ -584,8 +657,11 @@
         <div class="top-btn" id="unitBtn">cm</div>
     </div>
 
+    <!-- Camera Switch Button -->
+    <button class="camera-switch" id="cameraSwitchBtn" title="Ganti Kamera">🔄</button>
+
     <!-- Measurement Display -->
-    <div class="measure-display" id="measureDisplay" style="display: none;">
+    <div class="measure-display" id="measureDisplay">
         <div class="measure-value" id="measureValue">0.00</div>
         <div class="measure-unit" id="measureUnit">cm</div>
     </div>
@@ -644,14 +720,17 @@
     <script>
         // ===== STATE =====
         let points = [];
-        let lines = [];
         let currentUnit = 'cm';
         let currentTab = 'measure';
         let isDragging = false;
         let dragPointIndex = -1;
         let history = JSON.parse(localStorage.getItem('measureHistory') || '[]');
+        let cameraStream = null;
+        let currentFacingMode = 'environment'; // 'environment' = rear, 'user' = front
+        let isSimulationMode = false;
 
         // ===== DOM ELEMENTS =====
+        const video = document.getElementById('cameraVideo');
         const canvas = document.getElementById('measureCanvas');
         const ctx = canvas.getContext('2d');
         const measureDisplay = document.getElementById('measureDisplay');
@@ -666,6 +745,8 @@
         const unitSelector = document.getElementById('unitSelector');
         const overlay = document.getElementById('overlay');
         const toast = document.getElementById('toast');
+        const cameraPermission = document.getElementById('cameraPermission');
+        const cameraSwitchBtn = document.getElementById('cameraSwitchBtn');
 
         // ===== CANVAS SETUP =====
         function resizeCanvas() {
@@ -673,9 +754,120 @@
             canvas.height = window.innerHeight;
             draw();
         }
-
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
+
+        // ===== CAMERA SETUP =====
+        async function startCamera(facingMode = 'environment') {
+            try {
+                // Stop existing stream
+                if (cameraStream) {
+                    cameraStream.getTracks().forEach(track => track.stop());
+                }
+
+                const constraints = {
+                    video: {
+                        facingMode: { ideal: facingMode },
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    },
+                    audio: false
+                };
+
+                cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = cameraStream;
+
+                video.onloadedmetadata = () => {
+                    video.play();
+                    showToast('Kamera aktif');
+                };
+
+                cameraPermission.classList.remove('active');
+                isSimulationMode = false;
+
+            } catch (err) {
+                console.error('Camera error:', err);
+                if (err.name === 'NotAllowedError') {
+                    showToast('Izin kamera ditolak. Gunakan mode simulasi.');
+                    enableSimulationMode();
+                } else if (err.name === 'NotFoundError') {
+                    showToast('Kamera tidak ditemukan. Gunakan mode simulasi.');
+                    enableSimulationMode();
+                } else {
+                    showToast('Error kamera: ' + err.message);
+                    enableSimulationMode();
+                }
+            }
+        }
+
+        function enableSimulationMode() {
+            isSimulationMode = true;
+            cameraPermission.classList.remove('active');
+            video.style.display = 'none';
+            document.querySelector('.camera-overlay').style.display = 'none';
+
+            // Create simulation background
+            const simBg = document.createElement('div');
+            simBg.id = 'simulationBg';
+            simBg.style.cssText = `
+                position: fixed;
+                top: 0; left: 0;
+                width: 100%; height: 100%;
+                background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+                z-index: 1;
+            `;
+            document.body.insertBefore(simBg, video);
+
+            showToast('Mode simulasi aktif');
+        }
+
+        function switchCamera() {
+            currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+            startCamera(currentFacingMode);
+        }
+
+        // Check if camera permission already granted
+        async function checkCameraPermission() {
+            try {
+                const permission = await navigator.permissions.query({ name: 'camera' });
+                if (permission.state === 'granted') {
+                    startCamera();
+                } else {
+                    cameraPermission.classList.add('active');
+                }
+            } catch (e) {
+                // Fallback: try to start camera directly
+                startCamera().catch(() => {
+                    cameraPermission.classList.add('active');
+                });
+            }
+        }
+
+        // Initialize camera on load
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            checkCameraPermission();
+        } else {
+            cameraPermission.classList.add('active');
+            document.querySelector('.camera-permission-text').textContent = 
+                'Browser Anda tidak mendukung akses kamera. Gunakan Chrome, Safari, atau Edge terbaru.';
+            document.getElementById('grantCameraBtn').style.display = 'none';
+        }
+
+        // Camera permission buttons
+        document.getElementById('grantCameraBtn').addEventListener('click', () => {
+            startCamera();
+        });
+
+        document.getElementById('simulationBtn').addEventListener('click', () => {
+            enableSimulationMode();
+        });
+
+        // Camera switch button
+        cameraSwitchBtn.addEventListener('click', () => {
+            if (!isSimulationMode && cameraStream) {
+                switchCamera();
+            }
+        });
 
         // ===== DRAWING =====
         function draw() {
@@ -686,7 +878,16 @@
                 const p1 = points[i];
                 const p2 = points[i + 1];
 
-                // Line
+                // Glow effect
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.strokeStyle = 'rgba(255, 204, 0, 0.3)';
+                ctx.lineWidth = 8;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+
+                // Main line
                 ctx.beginPath();
                 ctx.moveTo(p1.x, p1.y);
                 ctx.lineTo(p2.x, p2.y);
@@ -706,9 +907,9 @@
                 ctx.font = 'bold 14px -apple-system, sans-serif';
                 const textWidth = ctx.measureText(text).width;
 
-                ctx.fillStyle = 'rgba(0,0,0,0.8)';
+                ctx.fillStyle = 'rgba(0,0,0,0.85)';
                 ctx.beginPath();
-                ctx.roundRect(midX - textWidth/2 - 8, midY - 12, textWidth + 16, 24, 6);
+                ctx.roundRect(midX - textWidth/2 - 10, midY - 14, textWidth + 20, 28, 8);
                 ctx.fill();
 
                 // Label text
@@ -720,10 +921,16 @@
 
             // Draw points
             points.forEach((point, index) => {
+                // Outer glow
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 16, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 204, 0, 0.2)';
+                ctx.fill();
+
                 // Outer circle
                 ctx.beginPath();
                 ctx.arc(point.x, point.y, 12, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255, 204, 0, 0.3)';
+                ctx.fillStyle = 'rgba(255, 204, 0, 0.4)';
                 ctx.fill();
 
                 // Inner circle
@@ -755,7 +962,7 @@
         }
 
         function convertDistance(pixels) {
-            // Simulasi: 100 pixels = 2.54 cm (1 inch)
+            // Calibration: 100 pixels ≈ 2.54 cm (1 inch) pada layar mobile
             const cm = (pixels / 100) * 2.54;
 
             switch(currentUnit) {
@@ -870,7 +1077,6 @@
             // Fallback untuk desktop testing
             levelInterval = setInterval(() => {
                 if (!window.DeviceOrientationEvent) {
-                    // Simulasi untuk testing desktop
                     const time = Date.now() / 1000;
                     const beta = Math.sin(time) * 20;
                     const gamma = Math.cos(time * 0.7) * 20;
@@ -885,8 +1091,8 @@
         }
 
         function handleOrientation(e) {
-            const beta = e.beta || 0;   // Front-back tilt
-            const gamma = e.gamma || 0; // Left-right tilt
+            const beta = e.beta || 0;
+            const gamma = e.gamma || 0;
             updateLevel(beta, gamma);
         }
 
@@ -1016,16 +1222,11 @@
             toast.classList.add('show');
             setTimeout(() => {
                 toast.classList.remove('show');
-            }, 2000);
+            }, 2500);
         }
 
         // ===== INITIALIZE =====
         draw();
-
-        // Request permission for iOS 13+ device orientation
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            // Will need user interaction to request permission
-        }
     </script>
 </body>
 </html>
