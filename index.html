@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📏 Meteran Digital - Depth Sensing</title>
+    <title>📏 Meteran Digital - Deteksi Objek Pintar</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -83,8 +83,38 @@
         }
         .placeholder svg { width: 50px; height: 50px; opacity: 0.4; }
 
-        /* REAL-TIME DEPTH OVERLAY */
-        .depth-overlay {
+        /* SCAN VISUALIZATION */
+        .scan-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 20;
+            pointer-events: none;
+            display: none;
+        }
+        .scan-overlay.active { display: block; }
+        
+        .scan-box {
+            position: absolute;
+            border: 2px dashed rgba(0,245,255,0.6);
+            background: rgba(0,245,255,0.05);
+            transition: all 0.1s;
+        }
+        .scan-line {
+            position: absolute;
+            left: 0; right: 0;
+            height: 2px;
+            background: rgba(0,245,255,0.8);
+            box-shadow: 0 0 10px rgba(0,245,255,0.5);
+            animation: scanMove 2s linear infinite;
+        }
+        @keyframes scanMove {
+            0% { top: 20%; }
+            50% { top: 80%; }
+            100% { top: 20%; }
+        }
+
+        /* CALIBRATION OVERLAY */
+        .calib-overlay {
             position: absolute;
             inset: 0;
             background: rgba(0,0,0,0.92);
@@ -94,27 +124,28 @@
             align-items: center;
             justify-content: center;
             padding: 15px;
+            overflow-y: auto;
         }
-        .depth-overlay.active { display: flex; }
+        .calib-overlay.active { display: flex; }
 
-        .depth-panel {
+        .calib-panel {
             background: rgba(255,255,255,0.05);
             border: 1px solid rgba(0,245,255,0.3);
             border-radius: 16px;
             padding: 20px;
             max-width: 95%;
-            width: 420px;
+            width: 450px;
             animation: fadeIn 0.3s;
         }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
 
-        .depth-panel h3 {
+        .calib-panel h3 {
             color: #00f5ff;
             font-size: 1em;
             margin-bottom: 10px;
             text-align: center;
         }
-        .depth-panel .subtitle {
+        .calib-panel .subtitle {
             color: #888;
             font-size: 0.8em;
             text-align: center;
@@ -122,51 +153,100 @@
             line-height: 1.5;
         }
 
-        /* ZERO CALIBRATION */
-        .zero-section {
-            background: rgba(0,245,255,0.05);
-            border: 1px solid rgba(0,245,255,0.2);
-            border-radius: 12px;
-            padding: 15px;
+        /* STEP INDICATOR */
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
             margin-bottom: 15px;
         }
-        .zero-section .step-title {
-            color: #00f5ff;
-            font-size: 0.85em;
-            font-weight: 600;
-            margin-bottom: 8px;
+        .step-dot {
+            width: 30px; height: 30px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid #444;
             display: flex;
             align-items: center;
-            gap: 6px;
-        }
-        .zero-section p {
-            color: #aaa;
-            font-size: 0.8em;
-            line-height: 1.5;
-        }
-        .pixel-meter {
-            background: rgba(0,0,0,0.4);
-            border-radius: 8px;
-            padding: 12px;
-            margin-top: 10px;
-            text-align: center;
-        }
-        .pixel-meter .label {
-            color: #666;
+            justify-content: center;
             font-size: 0.75em;
-            margin-bottom: 5px;
-        }
-        .pixel-meter .value {
-            color: #00f5ff;
-            font-size: 1.8em;
-            font-weight: 800;
-        }
-        .pixel-meter .unit {
             color: #666;
-            font-size: 0.8em;
+            transition: all 0.3s;
+        }
+        .step-dot.active {
+            background: rgba(0,245,255,0.2);
+            border-color: #00f5ff;
+            color: #00f5ff;
+        }
+        .step-dot.done {
+            background: rgba(0,210,106,0.2);
+            border-color: #00d26a;
+            color: #00d26a;
         }
 
-        /* LIVE DISTANCE DISPLAY */
+        /* DETECTION STATUS */
+        .detection-status {
+            background: rgba(0,0,0,0.4);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 12px 0;
+            text-align: center;
+        }
+        .detection-status .label {
+            color: #666;
+            font-size: 0.75em;
+            margin-bottom: 8px;
+        }
+        .detection-status .value {
+            color: #00f5ff;
+            font-size: 1.5em;
+            font-weight: 700;
+        }
+        .detection-status .status-text {
+            margin-top: 8px;
+            font-size: 0.85em;
+        }
+        .detection-status .status-text.detected { color: #00d26a; }
+        .detection-status .status-text.searching { color: #ffc107; }
+        .detection-status .status-text.none { color: #ff416c; }
+
+        /* MANUAL DETECTION FALLBACK */
+        .manual-detect {
+            background: rgba(255,193,7,0.05);
+            border: 1px dashed rgba(255,193,7,0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 12px 0;
+        }
+        .manual-detect p {
+            color: #ffc107;
+            font-size: 0.8em;
+            margin-bottom: 10px;
+        }
+        .manual-detect .manual-inputs {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        .manual-detect .input-group {
+            flex: 1;
+        }
+        .manual-detect .input-group label {
+            display: block;
+            color: #888;
+            font-size: 0.75em;
+            margin-bottom: 4px;
+        }
+        .manual-detect .input-group input {
+            width: 100%;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #444;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 0.9em;
+        }
+
+        /* LIVE DISTANCE */
         .live-dist-display {
             background: linear-gradient(135deg, rgba(0,245,255,0.1), rgba(0,114,255,0.1));
             border: 2px solid rgba(0,245,255,0.4);
@@ -190,11 +270,6 @@
             color: #666;
             font-size: 0.9em;
             margin-top: 5px;
-        }
-        .live-dist-display .status {
-            color: #00d26a;
-            font-size: 0.75em;
-            margin-top: 8px;
         }
 
         /* SLIDER */
@@ -226,7 +301,7 @@
             box-shadow: 0 0 15px rgba(0,245,255,0.5);
         }
 
-        /* ACTION BUTTONS */
+        /* BUTTONS */
         .action-btns {
             display: flex;
             gap: 10px;
@@ -254,6 +329,11 @@
         .btn-skip {
             background: rgba(255,255,255,0.1);
             color: #aaa;
+        }
+        .btn-manual {
+            background: rgba(255,193,7,0.15);
+            color: #ffc107;
+            border: 1px solid rgba(255,193,7,0.3);
         }
 
         /* REF OBJECT */
@@ -473,7 +553,7 @@
         @media (max-width: 480px) {
             .header h1 { font-size: 1em; }
             .btn { padding: 8px 14px; font-size: 0.8em; }
-            .depth-panel { padding: 15px; }
+            .calib-panel { padding: 15px; }
             .live-dist-display .value { font-size: 2em; }
         }
     </style>
@@ -481,8 +561,8 @@
 <body>
     <div class="app-container">
         <div class="header">
-            <h1>📏 Meteran Digital - Depth Sensing</h1>
-            <p>Titik 0 = menempel kamera • Mundur = jarak bertambah real-time</p>
+            <h1>📏 Meteran Digital - Deteksi Objek Pintar</h1>
+            <p>Auto-deteksi objek • Manual fallback • Real-time depth</p>
         </div>
 
         <div class="main-view">
@@ -498,50 +578,73 @@
                 <video id="videoElement" autoplay playsinline muted></video>
                 <canvas id="measureCanvas"></canvas>
 
+                <!-- Scan Visualization -->
+                <div class="scan-overlay" id="scanOverlay">
+                    <div class="scan-line"></div>
+                    <div class="scan-box" id="scanBox"></div>
+                </div>
+
                 <!-- Live Info -->
                 <div class="live-bar" id="liveBar">
                     <div class="live-pill">Jarak: <span id="liveDist">-</span> cm</div>
-                    <div class="live-pill">Ratio: <span id="liveRatio">-</span> mm/px</div>
                     <div class="live-pill">Pixel: <span id="livePixel">-</span> px</div>
+                    <div class="live-pill">Status: <span id="liveStatus">-</span></div>
                 </div>
 
-                <!-- Depth Calibration Overlay -->
-                <div class="depth-overlay" id="depthOverlay">
-                    <div class="depth-panel">
-                        <h3>📏 Kalibrasi Jarak Real-Time</h3>
+                <!-- Calibration Overlay -->
+                <div class="calib-overlay" id="calibOverlay">
+                    <div class="calib-panel">
+                        <h3>📏 Kalibrasi Depth Sensing</h3>
                         <div class="subtitle">
-                            Aplikasi mendeteksi perubahan jarak otomatis dari ukuran pixel objek.
+                            Aplikasi mendeteksi objek secara otomatis. Jika gagal, gunakan input manual.
+                        </div>
+
+                        <!-- Step Indicator -->
+                        <div class="step-indicator">
+                            <div class="step-dot active" id="dot1">1</div>
+                            <div class="step-dot" id="dot2">2</div>
+                            <div class="step-dot" id="dot3">3</div>
                         </div>
 
                         <!-- Step 1: Zero Point -->
-                        <div class="zero-section" id="zeroSection">
-                            <div class="step-title">📍 LANGKAH 1: Titik Nol (0mm)</div>
-                            <p>
-                                Tempelkan <strong>Kartu Kredit</strong> langsung ke lensa kamera.
-                                Aplikasi akan menangkap ukuran pixel maksimum.
-                            </p>
-                            <div class="pixel-meter">
-                                <div class="label">Ukuran Pixel Saat Ini</div>
+                        <div id="step1Content">
+                            <div class="detection-status">
+                                <div class="label">Ukuran Pixel Objek (Auto-Deteksi)</div>
                                 <div class="value" id="zeroPixelVal">0</div>
-                                <div class="unit">pixel (maksimum = menempel)</div>
+                                <div class="status-text searching" id="zeroStatus">
+                                    🔍 Mencari objek... Tempelkan KTP ke kamera
+                                </div>
                             </div>
+
+                            <!-- Manual Fallback -->
+                            <div class="manual-detect" id="manualZero">
+                                <p>⚠️ Auto-deteksi tidak berhasil? Masukkan manual:</p>
+                                <div class="manual-inputs">
+                                    <div class="input-group">
+                                        <label>Lebar Pixel (lihat di layar kamera)</label>
+                                        <input type="number" id="manualPixelZero" placeholder="Contoh: 1500" min="10">
+                                    </div>
+                                    <button class="btn-manual" onclick="manualCaptureZero()">✓ Gunakan</button>
+                                </div>
+                            </div>
+
+                            <div class="ref-select">
+                                <div class="ref-chip active" onclick="selectRef(this, 85.6)">💳 Kartu Kredit (85.6mm)</div>
+                                <div class="ref-chip" onclick="selectRef(this, 54)">🪪 KTP (54mm)</div>
+                                <div class="ref-chip" onclick="selectRef(this, 24.5)">🪙 Koin (24.5mm)</div>
+                            </div>
+
                             <div class="action-btns">
                                 <button class="btn-capture" onclick="captureZero()">📸 Tangkap Titik 0</button>
                             </div>
                         </div>
 
-                        <!-- Step 2: Distance Calibration -->
-                        <div class="zero-section" id="distSection" style="display:none">
-                            <div class="step-title">📏 LANGKAH 2: Mundurkan Kamera</div>
-                            <p>
-                                <strong>Mundurkan kamera</strong> dari objek. Lihat nilai jarak berubah real-time!
-                            </p>
-
+                        <!-- Step 2: Distance -->
+                        <div id="step2Content" style="display:none">
                             <div class="live-dist-display">
                                 <div class="label">Jarak Kamera ke Objek</div>
                                 <div class="value" id="distValue">0.0</div>
                                 <div class="unit">centimeter (cm)</div>
-                                <div class="status" id="distStatus">⏳ Menunggu mundur...</div>
                             </div>
 
                             <div class="slider-container">
@@ -550,7 +653,7 @@
                                     <span id="sliderVal">0 cm</span>
                                 </label>
                                 <input type="range" class="slider-input" id="distSlider" 
-                                       min="0" max="100" value="0" step="0.5"
+                                       min="1" max="100" value="10" step="0.5"
                                        oninput="onSliderChange(this.value)">
                             </div>
 
@@ -561,23 +664,17 @@
                         </div>
 
                         <!-- Step 3: Done -->
-                        <div class="zero-section" id="doneSection" style="display:none">
-                            <div class="step-title">🎉 Kalibrasi Selesai!</div>
-                            <p>
-                                Sistem depth sensing aktif. Jarak dihitung otomatis saat kamera bergerak.
-                            </p>
+                        <div id="step3Content" style="display:none">
+                            <div style="text-align:center; padding:20px 0;">
+                                <div style="font-size:3em; margin-bottom:10px;">🎉</div>
+                                <div style="color:#00d26a; font-weight:700; margin-bottom:10px;">Kalibrasi Selesai!</div>
+                                <div style="color:#888; font-size:0.85em;">
+                                    Jarak: <span id="finalDist" style="color:#00f5ff; font-weight:600;">-</span> cm<br>
+                                    Ratio: <span id="finalRatio" style="color:#00f5ff; font-weight:600;">-</span> mm/px
+                                </div>
+                            </div>
                             <div class="action-btns">
                                 <button class="btn-confirm" onclick="finishCalib()">🔍 Mulai Mengukur</button>
-                            </div>
-                        </div>
-
-                        <!-- Reference Object -->
-                        <div style="margin-top:15px;">
-                            <label style="color:#888; font-size:0.8em; display:block; margin-bottom:8px;">Objek Referensi:</label>
-                            <div class="ref-select">
-                                <div class="ref-chip active" onclick="selectRef(this, 85.6)">💳 Kartu Kredit (85.6mm)</div>
-                                <div class="ref-chip" onclick="selectRef(this, 54)">🪪 KTP (54mm)</div>
-                                <div class="ref-chip" onclick="selectRef(this, 24.5)">🪙 Koin (24.5mm)</div>
                             </div>
                         </div>
                     </div>
@@ -634,7 +731,7 @@
         let depth = {
             zeroPixelSize: 0,
             currentPixelSize: 0,
-            currentDistanceMm: 0,
+            currentDistanceMm: 100,
             refObjectWidth: 85.6,
             mmPerPixel: 0,
             isZeroCaptured: false,
@@ -643,6 +740,7 @@
         };
         
         let isAnalyzing = false;
+        let currentStep = 1;
 
         // ==================== CAMERA ====================
         async function startCamera() {
@@ -672,12 +770,15 @@
                 document.getElementById('btnRekalib').disabled = false;
                 updateStatus('statusCamera', 'ok');
                 
-                showToast('✅ Kamera aktif! Lakukan kalibrasi titik 0.');
+                showToast('✅ Kamera aktif! Lihat scan visual di layar.');
                 
                 startFrameAnalysis();
                 
                 if (!depth.isCalibrated) {
-                    setTimeout(() => document.getElementById('depthOverlay').classList.add('active'), 500);
+                    setTimeout(() => {
+                        document.getElementById('calibOverlay').classList.add('active');
+                        document.getElementById('scanOverlay').classList.add('active');
+                    }, 500);
                 }
                 
             } catch (e) {
@@ -708,7 +809,10 @@
                     
                     startFrameAnalysis();
                     if (!depth.isCalibrated) {
-                        setTimeout(() => document.getElementById('depthOverlay').classList.add('active'), 500);
+                        setTimeout(() => {
+                            document.getElementById('calibOverlay').classList.add('active');
+                            document.getElementById('scanOverlay').classList.add('active');
+                        }, 500);
                     }
                 } catch (e2) {
                     showToast('❌ Gagal: ' + e2.message);
@@ -724,7 +828,7 @@
         }
         window.addEventListener('resize', resizeCanvas);
 
-        // ==================== REAL-TIME FRAME ANALYSIS ====================
+        // ==================== IMPROVED FRAME ANALYSIS ====================
         function startFrameAnalysis() {
             if (isAnalyzing) return;
             isAnalyzing = true;
@@ -746,55 +850,123 @@
                 const imageData = tempCtx.getImageData(0, 0, analysisW, analysisH);
                 const data = imageData.data;
                 
+                // IMPROVED DETECTION: Find largest contiguous region with similar brightness
+                // that is different from background
+                
+                // First, calculate average brightness of whole frame (background)
+                let totalBrightness = 0;
+                for (let i = 0; i < data.length; i += 4) {
+                    totalBrightness += (data[i] + data[i+1] + data[i+2]) / 3;
+                }
+                const avgBrightness = totalBrightness / (data.length / 4);
+                
+                // Find center region object by looking for region with brightness 
+                // significantly different from average
+                const centerX = Math.floor(analysisW / 2);
                 const centerY = Math.floor(analysisH / 2);
-                let leftEdge = Math.floor(analysisW / 2);
-                let rightEdge = Math.floor(analysisW / 2);
+                const searchRadius = Math.min(analysisW, analysisH) * 0.45;
                 
-                // Find left edge
-                for (let x = centerX; x > 0; x--) {
+                // Scan from center outward to find object boundaries
+                let objLeft = centerX, objRight = centerX, objTop = centerY, objBottom = centerY;
+                
+                // Horizontal scan at center Y
+                const threshold = 25; // brightness difference threshold
+                
+                // Find left boundary
+                for (let x = centerX; x >= 0; x--) {
                     const idx = (centerY * analysisW + x) * 4;
-                    const prevIdx = (centerY * analysisW + (x-1)) * 4;
-                    const diff = Math.abs(data[idx] - data[prevIdx]) + 
-                                Math.abs(data[idx+1] - data[prevIdx+1]) + 
-                                Math.abs(data[idx+2] - data[prevIdx+2]);
-                    if (diff > 80) {
-                        leftEdge = x;
+                    const brightness = (data[idx] + data[idx+1] + data[idx+2]) / 3;
+                    if (Math.abs(brightness - avgBrightness) < threshold) {
+                        objLeft = x;
                         break;
                     }
                 }
                 
-                // Find right edge
-                for (let x = centerX; x < analysisW - 1; x++) {
+                // Find right boundary  
+                for (let x = centerX; x < analysisW; x++) {
                     const idx = (centerY * analysisW + x) * 4;
-                    const nextIdx = (centerY * analysisW + (x+1)) * 4;
-                    const diff = Math.abs(data[idx] - data[nextIdx]) + 
-                                Math.abs(data[idx+1] - data[nextIdx+1]) + 
-                                Math.abs(data[idx+2] - data[nextIdx+2]);
-                    if (diff > 80) {
-                        rightEdge = x;
+                    const brightness = (data[idx] + data[idx+1] + data[idx+2]) / 3;
+                    if (Math.abs(brightness - avgBrightness) < threshold) {
+                        objRight = x;
                         break;
                     }
                 }
                 
+                // Vertical scan at center X
+                // Find top boundary
+                for (let y = centerY; y >= 0; y--) {
+                    const idx = (y * analysisW + centerX) * 4;
+                    const brightness = (data[idx] + data[idx+1] + data[idx+2]) / 3;
+                    if (Math.abs(brightness - avgBrightness) < threshold) {
+                        objTop = y;
+                        break;
+                    }
+                }
+                
+                // Find bottom boundary
+                for (let y = centerY; y < analysisH; y++) {
+                    const idx = (y * analysisW + centerX) * 4;
+                    const brightness = (data[idx] + data[idx+1] + data[idx+2]) / 3;
+                    if (Math.abs(brightness - avgBrightness) < threshold) {
+                        objBottom = y;
+                        break;
+                    }
+                }
+                
+                // Calculate pixel dimensions
                 const scaleX = video.videoWidth / analysisW;
-                const pixelWidth = (rightEdge - leftEdge) * scaleX;
-                const clampedWidth = Math.max(10, Math.min(video.videoWidth * 0.95, pixelWidth));
+                const scaleY = video.videoHeight / analysisH;
+                
+                const pixelWidth = (objRight - objLeft) * scaleX;
+                const pixelHeight = (objBottom - objTop) * scaleY;
+                
+                // Use the larger dimension (assuming card is horizontal)
+                const maxPixelSize = Math.max(pixelWidth, pixelHeight);
+                const clampedWidth = Math.max(50, Math.min(video.videoWidth * 0.95, maxPixelSize));
                 
                 depth.currentPixelSize = clampedWidth;
                 
+                // Update scan box visualization
+                const scanBox = document.getElementById('scanBox');
+                const container = document.getElementById('cameraContainer');
+                const containerRect = container.getBoundingClientRect();
+                
+                const displayScaleX = containerRect.width / analysisW;
+                const displayScaleY = containerRect.height / analysisH;
+                
+                scanBox.style.left = (objLeft * displayScaleX) + 'px';
+                scanBox.style.top = (objTop * displayScaleY) + 'px';
+                scanBox.style.width = ((objRight - objLeft) * displayScaleX) + 'px';
+                scanBox.style.height = ((objBottom - objTop) * displayScaleY) + 'px';
+                
+                // Update displays
                 if (!depth.isZeroCaptured) {
                     document.getElementById('zeroPixelVal').textContent = Math.round(clampedWidth);
+                    
+                    const statusEl = document.getElementById('zeroStatus');
+                    if (clampedWidth > 200) {
+                        statusEl.textContent = '✅ Objek terdeteksi! Siap tangkap titik 0';
+                        statusEl.className = 'status-text detected';
+                    } else {
+                        statusEl.textContent = '🔍 Mencari objek... Tempelkan KTP ke kamera';
+                        statusEl.className = 'status-text searching';
+                    }
                 }
                 
+                // Calculate distance if zero captured
                 if (depth.isZeroCaptured && depth.zeroPixelSize > 0) {
                     calculateRealTimeDistance();
                 }
                 
+                // Update live bar
                 if (depth.isCalibrated) {
                     document.getElementById('livePixel').textContent = Math.round(depth.currentPixelSize);
+                    document.getElementById('liveStatus').textContent = depth.currentPixelSize > 200 ? 'OK' : 'JAUH';
                 }
                 
-            } catch (e) {}
+            } catch (e) {
+                console.log('Analysis error:', e);
+            }
             
             requestAnimationFrame(analyzeFrame);
         }
@@ -803,12 +975,16 @@
         function calculateRealTimeDistance() {
             if (depth.zeroPixelSize <= 0 || depth.currentPixelSize <= 0) return;
             
-            const typicalSensorWidth = 6.4;
-            const videoW = video.videoWidth || 1920;
+            // Using inverse relationship: distance ∝ 1/pixelSize
+            // At zero (touching ~5mm), pixelSize is maximum
+            // As we move back, pixelSize decreases
             
-            const approxZeroDistance = 5;
+            const approxZeroDistance = 5; // mm (very close)
+            
+            // Calculate focal length from zero calibration
             depth.focalLengthPx = (depth.zeroPixelSize * approxZeroDistance) / depth.refObjectWidth;
             
+            // Current distance
             const distanceMm = (depth.focalLengthPx * depth.refObjectWidth) / depth.currentPixelSize;
             const adjustedDistance = Math.max(0, distanceMm - approxZeroDistance);
             
@@ -820,30 +996,18 @@
             document.getElementById('sliderVal').textContent = cm + ' cm';
             
             const slider = document.getElementById('distSlider');
-            if (Math.abs(parseFloat(slider.value) - parseFloat(cm)) > 1) {
+            if (Math.abs(parseFloat(slider.value) - parseFloat(cm)) > 2) {
                 slider.value = cm;
             }
             
-            const status = document.getElementById('distStatus');
-            if (adjustedDistance < 10) {
-                status.textContent = '⚠️ Terlalu dekat! Mundurkan kamera';
-                status.style.color = '#ffc107';
-            } else if (adjustedDistance > 500) {
-                status.textContent = '⚠️ Terlalu jauh! Dekatkan kamera';
-                status.style.color = '#ffc107';
-            } else {
-                status.textContent = '✅ Jarak ideal untuk kalibrasi';
-                status.style.color = '#00d26a';
-            }
-            
             document.getElementById('liveDist').textContent = cm;
-            document.getElementById('liveRatio').textContent = depth.mmPerPixel.toFixed(4);
         }
 
         // ==================== CALIBRATION ACTIONS ====================
         function captureZero() {
-            if (depth.currentPixelSize <= 0) {
-                showToast('❌ Tidak ada objek terdeteksi! Pastikan kartu kredit menempel lensa.');
+            if (depth.currentPixelSize < 100) {
+                showToast('❌ Objek tidak terdeteksi! Coba input manual atau pindahkan objek ke tengah.');
+                document.getElementById('manualZero').style.display = 'block';
                 return;
             }
             
@@ -852,10 +1016,33 @@
             
             showToast(`✅ Titik 0 tercatat! Pixel: ${Math.round(depth.zeroPixelSize)}`);
             
-            document.getElementById('zeroSection').style.display = 'none';
-            document.getElementById('distSection').style.display = 'block';
+            // Move to step 2
+            currentStep = 2;
+            document.getElementById('dot1').className = 'step-dot done';
+            document.getElementById('dot2').className = 'step-dot active';
+            document.getElementById('step1Content').style.display = 'none';
+            document.getElementById('step2Content').style.display = 'block';
             
             showToast('📏 Sekarang mundurkan kamera dari objek...');
+        }
+
+        function manualCaptureZero() {
+            const manualPixel = parseFloat(document.getElementById('manualPixelZero').value);
+            if (!manualPixel || manualPixel < 10) {
+                showToast('❌ Nilai pixel tidak valid!');
+                return;
+            }
+            
+            depth.zeroPixelSize = manualPixel;
+            depth.isZeroCaptured = true;
+            
+            showToast(`✅ Titik 0 manual: ${manualPixel} pixel`);
+            
+            currentStep = 2;
+            document.getElementById('dot1').className = 'step-dot done';
+            document.getElementById('dot2').className = 'step-dot active';
+            document.getElementById('step1Content').style.display = 'none';
+            document.getElementById('step2Content').style.display = 'block';
         }
 
         function onSliderChange(val) {
@@ -868,8 +1055,7 @@
             }
             
             document.getElementById('sliderVal').textContent = val + ' cm';
-            document.getElementById('distStatus').textContent = '✏️ Penyesuaian manual aktif';
-            document.getElementById('distStatus').style.color = '#00f5ff';
+            document.getElementById('distValue').textContent = val;
         }
 
         function confirmDistance() {
@@ -877,53 +1063,71 @@
             
             const cm = (depth.currentDistanceMm / 10).toFixed(1);
             
-            showToast(`✅ Kalibrasi: ${cm}cm, ratio=${depth.mmPerPixel.toFixed(4)}mm/px`);
+            document.getElementById('finalDist').textContent = cm;
+            document.getElementById('finalRatio').textContent = depth.mmPerPixel.toFixed(4);
             
-            document.getElementById('distSection').style.display = 'none';
-            document.getElementById('doneSection').style.display = 'block';
+            currentStep = 3;
+            document.getElementById('dot2').className = 'step-dot done';
+            document.getElementById('dot3').className = 'step-dot active';
+            document.getElementById('step2Content').style.display = 'none';
+            document.getElementById('step3Content').style.display = 'block';
             updateStatus('statusCalib', 'ok');
+            
+            showToast(`✅ Kalibrasi: ${cm}cm`);
         }
 
         function skipDistance() {
-            if (depth.currentDistanceMm <= 0) {
-                depth.currentDistanceMm = 100;
-            }
+            if (depth.currentDistanceMm <= 0) depth.currentDistanceMm = 100;
             depth.isCalibrated = true;
             
-            showToast('⚠️ Kalibrasi dilewati. Akurasi mungkin kurang.');
+            const cm = (depth.currentDistanceMm / 10).toFixed(1);
+            document.getElementById('finalDist').textContent = cm;
+            document.getElementById('finalRatio').textContent = depth.mmPerPixel.toFixed(4);
+            
+            currentStep = 3;
+            document.getElementById('dot2').className = 'step-dot done';
+            document.getElementById('dot3').className = 'step-dot active';
+            document.getElementById('step2Content').style.display = 'none';
+            document.getElementById('step3Content').style.display = 'block';
             updateStatus('statusCalib', 'warn');
             
-            document.getElementById('distSection').style.display = 'none';
-            document.getElementById('doneSection').style.display = 'block';
+            showToast('⚠️ Kalibrasi dilewati.');
         }
 
         function finishCalib() {
-            document.getElementById('depthOverlay').classList.remove('active');
+            document.getElementById('calibOverlay').classList.remove('active');
+            document.getElementById('scanOverlay').classList.remove('active');
             document.getElementById('liveBar').classList.add('active');
-            showToast('✅ Siap mengukur! Jarak dihitung otomatis.');
+            showToast('✅ Siap mengukur!');
         }
 
         function selectRef(el, widthMm) {
             document.querySelectorAll('.ref-chip').forEach(c => c.classList.remove('active'));
             el.classList.add('active');
             depth.refObjectWidth = widthMm;
-            showToast(`Objek referensi: ${widthMm}mm`);
+            showToast(`Referensi: ${widthMm}mm`);
         }
 
         function rekalib() {
             depth.isZeroCaptured = false;
             depth.isCalibrated = false;
-            depth.currentDistanceMm = 0;
+            depth.currentDistanceMm = 100;
+            currentStep = 1;
             
-            document.getElementById('zeroSection').style.display = 'block';
-            document.getElementById('distSection').style.display = 'none';
-            document.getElementById('doneSection').style.display = 'none';
+            document.getElementById('dot1').className = 'step-dot active';
+            document.getElementById('dot2').className = 'step-dot';
+            document.getElementById('dot3').className = 'step-dot';
+            
+            document.getElementById('step1Content').style.display = 'block';
+            document.getElementById('step2Content').style.display = 'none';
+            document.getElementById('step3Content').style.display = 'none';
             document.getElementById('liveBar').classList.remove('active');
             
-            document.getElementById('depthOverlay').classList.add('active');
+            document.getElementById('calibOverlay').classList.add('active');
+            document.getElementById('scanOverlay').classList.add('active');
             updateStatus('statusCalib', 'off');
             
-            showToast('📏 Kalibrasi ulang dimulai...');
+            showToast('📏 Kalibrasi ulang...');
         }
 
         // ==================== MEASUREMENT ====================
@@ -949,7 +1153,7 @@
             }
             if (!depth.isCalibrated) {
                 showToast('⚠️ Kalibrasi diperlukan!');
-                document.getElementById('depthOverlay').classList.add('active');
+                document.getElementById('calibOverlay').classList.add('active');
                 return;
             }
             
@@ -961,7 +1165,7 @@
                 btn.style.background = 'linear-gradient(135deg, #ff416c, #ff4b2b)';
                 canvas.style.cursor = 'crosshair';
                 canvas.addEventListener('click', onCanvasClick);
-                showToast('📍 Klik pada objek untuk mengukur');
+                showToast('📍 Klik 2 titik pada objek');
             } else {
                 const texts = { length: '📍 Titik', area: '📍 Sudut', distance: '📍 Objek', multi: '📍 Titik' };
                 btn.textContent = texts[currentMode];
@@ -1017,7 +1221,7 @@
             
             drawMeasurementLine(p1.screenX, p1.screenY, p2.screenX, p2.screenY, `${mmFixed} mm`);
             
-            addResult('📏 Panjang', `${mmFixed} mm`, `${cm} cm | Jarak: ${(distMm/10).toFixed(1)}cm | ${depth.refObjectWidth}mm ref`);
+            addResult('📏 Panjang', `${mmFixed} mm`, `${cm} cm | Jarak: ${(distMm/10).toFixed(1)}cm`);
             showToast(`📏 ${mmFixed} mm`);
         }
 
@@ -1069,7 +1273,7 @@
             
             drawMeasurementLine(p1.screenX, p1.screenY, p2.screenX, p2.screenY, `${mm.toFixed(1)} mm`, '#b829dd');
             
-            addResult('↔️ Jarak Objek', `${mm.toFixed(1)} mm`, `${(mm/10).toFixed(2)} cm | Jarak kamera: ${(distMm/10).toFixed(1)}cm`);
+            addResult('↔️ Jarak Objek', `${mm.toFixed(1)} mm`, `${(mm/10).toFixed(2)} cm`);
             showToast(`↔️ ${mm.toFixed(1)} mm`);
         }
 
