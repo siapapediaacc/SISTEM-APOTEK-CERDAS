@@ -2,1700 +2,1030 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>AR Building Measure Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Measure</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #000;
-            overflow: hidden;
-            touch-action: none;
             user-select: none;
             -webkit-user-select: none;
         }
 
-        #container {
-            position: relative;
-            width: 100vw;
+        body {
+            background: #000;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
             height: 100vh;
+            width: 100vw;
         }
 
-        #video {
+        /* ===== CAMERA VIEW ===== */
+        .camera-view {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            z-index: 1;
+        }
+
+        /* Simulasi grid kamera */
+        .camera-grid {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            object-fit: cover;
-        }
-
-        #canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 10;
-            cursor: crosshair;
-        }
-
-        .ui-layer {
-            position: absolute;
-            z-index: 20;
             pointer-events: none;
+            opacity: 0.3;
+        }
+
+        .grid-line-h {
+            position: absolute;
             width: 100%;
-            height: 100%;
-        }
-
-        .top-bar {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            padding: 12px 16px;
-            padding-top: max(12px, env(safe-area-inset-top));
-            background: linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.4) 60%, transparent 100%);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            pointer-events: auto;
-        }
-
-        .mode-selector {
-            display: flex;
-            gap: 4px;
-            background: rgba(60,60,67,0.6);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-radius: 20px;
-            padding: 3px;
-        }
-
-        .mode-btn {
-            padding: 7px 14px;
-            border: none;
-            border-radius: 17px;
-            background: transparent;
-            color: rgba(255,255,255,0.7);
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.25s ease;
-            white-space: nowrap;
-        }
-
-        .mode-btn.active {
-            background: #007AFF;
-            color: white;
-            box-shadow: 0 2px 8px rgba(0,122,255,0.4);
-        }
-
-        .top-actions {
-            display: flex;
-            gap: 8px;
-        }
-
-        .icon-btn {
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            background: rgba(60,60,67,0.6);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: none;
-            color: white;
-            font-size: 16px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-        }
-
-        .icon-btn:active {
-            transform: scale(0.92);
-            background: rgba(80,80,87,0.8);
-        }
-
-        .icon-btn.active-state {
-            background: #007AFF;
-        }
-
-        .measurement-display {
-            position: absolute;
-            top: 70px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 24px;
-            font-size: 22px;
-            font-weight: 700;
-            pointer-events: auto;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            border: 1px solid rgba(255,255,255,0.1);
-            min-width: 140px;
-            justify-content: center;
-        }
-
-        .measurement-display .value {
-            color: #34D399;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .unit-toggle {
-            background: rgba(255,255,255,0.15);
-            border: none;
-            color: white;
-            padding: 3px 10px;
-            border-radius: 12px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 600;
-            transition: all 0.2s;
-        }
-
-        .unit-toggle:active {
+            height: 1px;
             background: rgba(255,255,255,0.3);
         }
 
-        .cal-badge {
+        .grid-line-v {
             position: absolute;
-            top: 120px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(245,158,11,0.85);
-            backdrop-filter: blur(10px);
-            color: white;
-            padding: 6px 14px;
-            border-radius: 16px;
-            font-size: 12px;
-            font-weight: 600;
-            pointer-events: auto;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            animation: pulse-badge 2s infinite;
-            border: 1px solid rgba(255,255,255,0.2);
+            height: 100%;
+            width: 1px;
+            background: rgba(255,255,255,0.3);
         }
 
-        .cal-badge.calibrated {
-            background: rgba(16,185,129,0.85);
-            animation: none;
-        }
-
-        @keyframes pulse-badge {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-
-        .crosshair-container {
+        /* Crosshair */
+        .crosshair {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 80px;
-            height: 80px;
+            width: 40px;
+            height: 40px;
             pointer-events: none;
-            z-index: 15;
         }
 
-        .crosshair {
-            width: 100%;
-            height: 100%;
-            position: relative;
-        }
-
-        .crosshair-line {
+        .crosshair::before, .crosshair::after {
+            content: '';
             position: absolute;
             background: rgba(255,255,255,0.6);
         }
 
-        .crosshair-line.h {
+        .crosshair::before {
+            width: 1px;
+            height: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .crosshair::after {
+            height: 1px;
             width: 100%;
-            height: 1.5px;
             top: 50%;
             transform: translateY(-50%);
         }
 
-        .crosshair-line.v {
-            width: 1.5px;
+        /* ===== MEASUREMENT CANVAS ===== */
+        #measureCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
             height: 100%;
-            left: 50%;
-            transform: translateX(-50%);
+            z-index: 2;
+            touch-action: none;
         }
 
-        .crosshair-dot {
-            position: absolute;
-            width: 6px;
-            height: 6px;
-            background: #007AFF;
-            border-radius: 50%;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 0 0 3px rgba(0,122,255,0.3), 0 0 15px rgba(0,122,255,0.5);
-        }
-
-        .instructions {
-            position: absolute;
-            bottom: 160px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.55);
+        /* ===== TOP BAR ===== */
+        .top-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background: rgba(0,0,0,0.6);
             backdrop-filter: blur(10px);
-            color: rgba(255,255,255,0.9);
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 13px;
-            text-align: center;
-            pointer-events: none;
-            white-space: nowrap;
-            transition: all 0.3s;
+            -webkit-backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+            z-index: 100;
         }
 
+        .top-btn {
+            color: #ffcc00;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+
+        .top-btn:active {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .top-title {
+            color: #fff;
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        /* ===== MEASUREMENT DISPLAY ===== */
+        .measure-display {
+            position: fixed;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-radius: 12px;
+            padding: 12px 24px;
+            text-align: center;
+            z-index: 100;
+            min-width: 200px;
+        }
+
+        .measure-value {
+            font-size: 32px;
+            font-weight: 600;
+            color: #ffcc00;
+            letter-spacing: -0.5px;
+        }
+
+        .measure-unit {
+            font-size: 14px;
+            color: #aaa;
+            margin-top: 2px;
+        }
+
+        /* ===== BOTTOM CONTROLS ===== */
         .bottom-controls {
-            position: absolute;
+            position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            padding: 20px 24px;
-            padding-bottom: max(20px, env(safe-area-inset-bottom));
-            background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 50%, transparent 100%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 16px;
-            pointer-events: auto;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding-bottom: env(safe-area-inset-bottom, 20px);
+            padding-top: 15px;
+            z-index: 100;
         }
 
-        .action-row {
+        .tab-bar {
             display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .tab-btn {
+            padding: 8px 24px;
+            border-radius: 20px;
+            font-size: 15px;
+            font-weight: 500;
+            color: #888;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            background: #333;
+            color: #fff;
+        }
+
+        .action-buttons {
+            display: flex;
+            justify-content: space-around;
             align-items: center;
-            gap: 32px;
+            padding: 0 30px 20px;
         }
 
         .action-btn {
-            width: 48px;
-            height: 48px;
+            width: 56px;
+            height: 56px;
             border-radius: 50%;
-            background: rgba(60,60,67,0.6);
-            backdrop-filter: blur(20px);
-            border: none;
-            color: white;
-            font-size: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            background: transparent;
+            color: #fff;
+            font-size: 13px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
+            flex-direction: column;
             transition: all 0.2s;
         }
 
         .action-btn:active {
-            transform: scale(0.9);
-            background: rgba(80,80,87,0.8);
+            background: rgba(255,255,255,0.1);
         }
 
-        .action-btn:disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-            transform: none;
+        .action-btn.shutter {
+            width: 72px;
+            height: 72px;
+            border: 3px solid #fff;
+            background: transparent;
         }
 
-        .capture-btn {
-            width: 68px;
-            height: 68px;
+        .action-btn.shutter::after {
+            content: '';
+            width: 58px;
+            height: 58px;
             border-radius: 50%;
-            background: white;
-            border: 4px solid rgba(255,255,255,0.35);
-            cursor: pointer;
+            background: #fff;
+            transition: all 0.2s;
+        }
+
+        .action-btn.shutter:active::after {
+            transform: scale(0.9);
+        }
+
+        .action-btn.clear-btn {
+            font-size: 11px;
+        }
+
+        .action-btn i {
+            font-size: 20px;
+            margin-bottom: 2px;
+        }
+
+        /* ===== LEVEL VIEW ===== */
+        .level-view {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 50;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .level-view.active {
+            display: flex;
+        }
+
+        .level-circle {
+            width: 280px;
+            height: 280px;
+            border-radius: 50%;
+            border: 3px solid #333;
             position: relative;
-            transition: all 0.15s;
             display: flex;
             align-items: center;
             justify-content: center;
         }
 
-        .capture-btn:active {
-            transform: scale(0.92);
-        }
-
-        .capture-btn::after {
-            content: '';
-            width: 56px;
-            height: 56px;
+        .level-bubble {
+            width: 60px;
+            height: 60px;
             border-radius: 50%;
-            background: white;
-            transition: all 0.2s;
-        }
-
-        .capture-btn.save-mode::after {
-            background: #34D399;
-        }
-
-        .level-container {
+            background: #ffcc00;
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 200px;
-            height: 200px;
-            display: none;
+            transition: all 0.1s;
+            box-shadow: 0 0 20px rgba(255,204,0,0.5);
+        }
+
+        .level-bubble.centered {
+            background: #4cd964;
+            box-shadow: 0 0 30px rgba(76,217,100,0.6);
+        }
+
+        .level-cross {
+            position: absolute;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
         }
 
-        .level-container.active {
-            display: block;
-        }
-
-        .level-circle {
-            width: 100%;
-            height: 100%;
-            border: 3px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            position: relative;
-            background: rgba(0,0,0,0.3);
-            backdrop-filter: blur(5px);
-        }
-
-        .level-grid {
+        .level-cross::before, .level-cross::after {
+            content: '';
             position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 100%;
-            height: 1px;
-            background: rgba(255,255,255,0.15);
-            transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.2);
         }
 
-        .level-grid.v {
+        .level-cross::before {
             width: 1px;
             height: 100%;
-        }
-
-        .level-bubble {
-            position: absolute;
-            width: 30px;
-            height: 30px;
-            background: #34D399;
-            border-radius: 50%;
-            top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 0 20px rgba(52,211,153,0.5);
-            transition: transform 0.1s ease-out;
         }
 
-        .level-bubble.off-level {
-            background: #F59E0B;
-            box-shadow: 0 0 20px rgba(245,158,11,0.5);
+        .level-cross::after {
+            height: 1px;
+            width: 100%;
+            top: 50%;
         }
 
         .level-value {
-            position: absolute;
-            bottom: -40px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: white;
-            font-size: 16px;
-            font-weight: 600;
-            background: rgba(0,0,0,0.6);
-            padding: 4px 12px;
-            border-radius: 12px;
+            margin-top: 40px;
+            font-size: 48px;
+            font-weight: 300;
+            color: #fff;
         }
 
-        .modal-overlay {
+        .level-label {
+            margin-top: 10px;
+            font-size: 16px;
+            color: #888;
+        }
+
+        /* ===== HISTORY PANEL ===== */
+        .history-panel {
             display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 200;
+            flex-direction: column;
+        }
+
+        .history-panel.active {
+            display: flex;
+        }
+
+        .history-header {
+            padding: 50px 20px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+        }
+
+        .history-title {
+            font-size: 22px;
+            font-weight: 600;
+        }
+
+        .history-close {
+            color: #ffcc00;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 8px;
+        }
+
+        .history-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 20px;
+        }
+
+        .history-item {
+            padding: 15px;
+            border-bottom: 1px solid #222;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-item-value {
+            font-size: 20px;
+            font-weight: 500;
+            color: #ffcc00;
+        }
+
+        .history-item-date {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .history-item-delete {
+            color: #ff3b30;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 5px 10px;
+        }
+
+        .history-empty {
+            text-align: center;
+            color: #666;
+            padding: 60px 20px;
+            font-size: 16px;
+        }
+
+        /* ===== POINT MARKERS ===== */
+        .point-marker {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ffcc00;
+            border: 3px solid #fff;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+
+        .point-label {
+            position: absolute;
+            background: rgba(0,0,0,0.8);
+            color: #ffcc00;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            transform: translate(-50%, -35px);
+            white-space: nowrap;
+        }
+
+        /* ===== INSTRUCTION ===== */
+        .instruction {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: rgba(255,255,255,0.6);
+            font-size: 16px;
+            pointer-events: none;
+            z-index: 5;
+            transition: opacity 0.5s;
+        }
+
+        .instruction.hidden {
+            opacity: 0;
+        }
+
+        /* ===== ANIMATIONS ===== */
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        /* ===== TOAST ===== */
+        .toast {
+            position: fixed;
+            bottom: 150px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255,255,255,0.9);
+            color: #000;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 300;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        /* ===== UNIT SELECTOR ===== */
+        .unit-selector {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1c1c1e;
+            border-radius: 16px;
+            padding: 20px;
+            z-index: 300;
+            display: none;
+            min-width: 250px;
+        }
+
+        .unit-selector.active {
+            display: block;
+        }
+
+        .unit-selector-title {
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .unit-option {
+            padding: 15px;
+            text-align: center;
+            border-radius: 10px;
+            margin: 5px 0;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .unit-option:hover {
+            background: #333;
+        }
+
+        .unit-option.selected {
+            background: #ffcc00;
+            color: #000;
+            font-weight: 600;
+        }
+
+        .overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             background: rgba(0,0,0,0.7);
-            z-index: 100;
-            justify-content: center;
-            align-items: flex-end;
-            backdrop-filter: blur(5px);
-        }
-
-        .modal-overlay.active {
-            display: flex;
-        }
-
-        .modal-sheet {
-            background: #1C1C1E;
-            width: 100%;
-            max-width: 500px;
-            border-radius: 24px 24px 0 0;
-            padding: 24px;
-            padding-bottom: max(24px, env(safe-area-inset-bottom));
-            animation: slide-up 0.3s ease;
-            max-height: 85vh;
-            overflow-y: auto;
-        }
-
-        @keyframes slide-up {
-            from { transform: translateY(100%); }
-            to { transform: translateY(0); }
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .modal-title {
-            font-size: 20px;
-            font-weight: 700;
-            color: white;
-        }
-
-        .modal-close {
-            background: rgba(255,255,255,0.1);
-            border: none;
-            color: white;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            font-size: 18px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .cal-option {
-            background: rgba(255,255,255,0.06);
-            border-radius: 16px;
-            padding: 16px;
-            margin-bottom: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: 2px solid transparent;
-        }
-
-        .cal-option:hover, .cal-option:active {
-            background: rgba(255,255,255,0.1);
-            border-color: #007AFF;
-        }
-
-        .cal-option-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 6px;
-        }
-
-        .cal-option-icon {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
-            background: rgba(0,122,255,0.2);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 22px;
-        }
-
-        .cal-option-title {
-            color: white;
-            font-size: 16px;
-            font-weight: 600;
-        }
-
-        .cal-option-desc {
-            color: rgba(255,255,255,0.5);
-            font-size: 13px;
-            margin-left: 56px;
-        }
-
-        .cal-manual {
-            margin-top: 16px;
-            padding-top: 16px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .cal-manual-title {
-            color: rgba(255,255,255,0.7);
-            font-size: 14px;
-            margin-bottom: 12px;
-        }
-
-        .input-group {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 12px;
-        }
-
-        .cal-input {
-            flex: 1;
-            padding: 12px 16px;
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.15);
-            background: rgba(255,255,255,0.05);
-            color: white;
-            font-size: 16px;
-            outline: none;
-        }
-
-        .cal-input:focus {
-            border-color: #007AFF;
-        }
-
-        .cal-input::placeholder {
-            color: rgba(255,255,255,0.3);
-        }
-
-        .btn-primary {
-            width: 100%;
-            padding: 14px;
-            border-radius: 12px;
-            border: none;
-            background: #007AFF;
-            color: white;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .btn-primary:active {
-            background: #0051D5;
-        }
-
-        .btn-secondary {
-            width: 100%;
-            padding: 14px;
-            border-radius: 12px;
-            border: none;
-            background: rgba(255,255,255,0.1);
-            color: white;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-top: 8px;
-            transition: all 0.2s;
-        }
-
-        .guide-overlay {
+            z-index: 250;
             display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 80;
-            pointer-events: none;
         }
 
-        .guide-overlay.active {
+        .overlay.active {
             display: block;
-        }
-
-        .guide-frame {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 280px;
-            height: 180px;
-            border: 3px solid #007AFF;
-            border-radius: 12px;
-            box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);
-        }
-
-        .guide-text {
-            position: absolute;
-            bottom: 30%;
-            left: 50%;
-            transform: translateX(-50%);
-            color: white;
-            font-size: 16px;
-            font-weight: 600;
-            text-align: center;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
-            width: 80%;
-        }
-
-        .guide-btn-area {
-            position: absolute;
-            bottom: 15%;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 12px;
-            pointer-events: auto;
-        }
-
-        .guide-btn {
-            padding: 12px 24px;
-            border-radius: 12px;
-            border: none;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        .guide-btn.primary {
-            background: #007AFF;
-            color: white;
-        }
-
-        .guide-btn.secondary {
-            background: rgba(255,255,255,0.2);
-            color: white;
-        }
-
-        .history-panel {
-            position: absolute;
-            top: 0;
-            right: -100%;
-            width: 85%;
-            max-width: 360px;
-            height: 100%;
-            background: rgba(28,28,30,0.95);
-            backdrop-filter: blur(30px);
-            z-index: 50;
-            transition: right 0.3s ease;
-            display: flex;
-            flex-direction: column;
-            padding-top: env(safe-area-inset-top);
-        }
-
-        .history-panel.active {
-            right: 0;
-        }
-
-        .history-header {
-            padding: 16px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .history-title {
-            color: white;
-            font-size: 18px;
-            font-weight: 700;
-        }
-
-        .history-close {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-            width: 36px;
-            height: 36px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .history-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 12px;
-        }
-
-        .history-item {
-            background: rgba(255,255,255,0.05);
-            border-radius: 14px;
-            padding: 14px;
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .history-info {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .history-type {
-            color: rgba(255,255,255,0.5);
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .history-time {
-            color: rgba(255,255,255,0.4);
-            font-size: 11px;
-        }
-
-        .history-value {
-            color: #34D399;
-            font-size: 20px;
-            font-weight: 700;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .history-empty {
-            color: rgba(255,255,255,0.3);
-            text-align: center;
-            padding: 60px 20px;
-            font-size: 14px;
-        }
-
-        .toast {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) scale(0.9);
-            background: rgba(0,0,0,0.85);
-            backdrop-filter: blur(20px);
-            color: white;
-            padding: 14px 28px;
-            border-radius: 24px;
-            font-size: 15px;
-            font-weight: 500;
-            z-index: 200;
-            opacity: 0;
-            transition: all 0.3s;
-            pointer-events: none;
-            text-align: center;
-            max-width: 80%;
-        }
-
-        .toast.show {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-        }
-
-        .loading-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #000;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 300;
-            color: white;
-            transition: opacity 0.5s;
-        }
-
-        .loading-screen.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .loading-ring {
-            width: 50px;
-            height: 50px;
-            border: 3px solid rgba(255,255,255,0.15);
-            border-top-color: #007AFF;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin-bottom: 20px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .loading-text {
-            font-size: 16px;
-            font-weight: 500;
-            margin-bottom: 8px;
-        }
-
-        .loading-sub {
-            font-size: 13px;
-            opacity: 0.5;
-        }
-
-        @media (max-width: 380px) {
-            .mode-btn {
-                padding: 6px 10px;
-                font-size: 12px;
-            }
-            .measurement-display {
-                font-size: 18px;
-                padding: 8px 16px;
-            }
         }
     </style>
 </head>
 <body>
-
-    <div class="loading-screen" id="loadingScreen">
-        <div class="loading-ring"></div>
-        <div class="loading-text">Memuat Kamera</div>
-        <div class="loading-sub">Izinkan akses kamera untuk melanjutkan</div>
+    <!-- Camera Background -->
+    <div class="camera-view" id="cameraView">
+        <div class="camera-grid">
+            <div class="grid-line-h" style="top: 33%"></div>
+            <div class="grid-line-h" style="top: 66%"></div>
+            <div class="grid-line-v" style="left: 33%"></div>
+            <div class="grid-line-v" style="left: 66%"></div>
+        </div>
+        <div class="crosshair"></div>
     </div>
 
-    <div id="container">
-        <video id="video" autoplay playsinline muted></video>
-        <canvas id="canvas"></canvas>
+    <!-- Canvas for drawing measurements -->
+    <canvas id="measureCanvas"></canvas>
 
-        <div class="ui-layer">
-            <div class="top-bar">
-                <div class="mode-selector">
-                    <button class="mode-btn active" data-mode="distance">Jarak</button>
-                    <button class="mode-btn" data-mode="area">Area</button>
-                    <button class="mode-btn" data-mode="level">Level</button>
-                </div>
-                <div class="top-actions">
-                    <button class="icon-btn" id="flashBtn">⚡</button>
-                    <button class="icon-btn" id="historyBtn">📋</button>
-                </div>
-            </div>
-
-            <div class="measurement-display" id="measurementDisplay">
-                <span class="value" id="currentValue">0.00</span>
-                <button class="unit-toggle" id="unitToggle">m</button>
-            </div>
-
-            <div class="cal-badge" id="calBadge">
-                <span>⚠️</span>
-                <span id="calText">Kalibrasi diperlukan</span>
-            </div>
-
-            <div class="crosshair-container" id="crosshairContainer">
-                <div class="crosshair">
-                    <div class="crosshair-line h"></div>
-                    <div class="crosshair-line v"></div>
-                    <div class="crosshair-dot"></div>
-                </div>
-            </div>
-
-            <div class="level-container" id="levelContainer">
-                <div class="level-circle">
-                    <div class="level-grid"></div>
-                    <div class="level-grid v"></div>
-                    <div class="level-bubble" id="levelBubble"></div>
-                </div>
-                <div class="level-value" id="levelValue">0.0°</div>
-            </div>
-
-            <div class="instructions" id="instructions">
-                Ketuk layar untuk titik pertama
-            </div>
-
-            <div class="bottom-controls">
-                <div class="action-row">
-                    <button class="action-btn" id="undoBtn" disabled title="Undo">↩️</button>
-                    <button class="capture-btn" id="captureBtn" title="Simpan / Capture"></button>
-                    <button class="action-btn" id="clearBtn" title="Hapus">🗑️</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="guide-overlay" id="guideOverlay">
-            <div class="guide-frame"></div>
-            <div class="guide-text" id="guideText">
-                Letakkan kartu kredit di dalam bingkai<br>
-                Pastikan terlihat jelas
-            </div>
-            <div class="guide-btn-area">
-                <button class="guide-btn secondary" id="guideCancel">Batal</button>
-                <button class="guide-btn primary" id="guideConfirm">Sudah Pas</button>
-            </div>
-        </div>
-
-        <div class="modal-overlay" id="calModal">
-            <div class="modal-sheet">
-                <div class="modal-header">
-                    <h3 class="modal-title">Kalibrasi Cepat</h3>
-                    <button class="modal-close" id="closeCalModal">✕</button>
-                </div>
-
-                <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 16px; line-height: 1.5;">
-                    Pilih objek referensi yang Anda miliki untuk kalibrasi otomatis. Pastikan kamera sejajar dengan objek.
-                </p>
-
-                <div class="cal-option" data-ref="creditcard">
-                    <div class="cal-option-header">
-                        <div class="cal-option-icon">💳</div>
-                        <div class="cal-option-title">Kartu Kredit / ATM</div>
-                    </div>
-                    <div class="cal-option-desc">Ukuran standar: 8.56 cm x 5.40 cm</div>
-                </div>
-
-                <div class="cal-option" data-ref="idcard">
-                    <div class="cal-option-header">
-                        <div class="cal-option-icon">🪪</div>
-                        <div class="cal-option-title">KTP / SIM</div>
-                    </div>
-                    <div class="cal-option-desc">Ukuran standar: 8.50 cm x 5.40 cm</div>
-                </div>
-
-                <div class="cal-option" data-ref="a4width">
-                    <div class="cal-option-header">
-                        <div class="cal-option-icon">📄</div>
-                        <div class="cal-option-title">Kertas A4 (lebar)</div>
-                    </div>
-                    <div class="cal-option-desc">Lebar kertas A4: 21.0 cm</div>
-                </div>
-
-                <div class="cal-option" data-ref="ruler">
-                    <div class="cal-option-header">
-                        <div class="cal-option-icon">📏</div>
-                        <div class="cal-option-title">Penggaris / Mistar</div>
-                    </div>
-                    <div class="cal-option-desc">Gunakan penggaris sebagai referensi</div>
-                </div>
-
-                <div class="cal-manual">
-                    <div class="cal-manual-title">Atau masukkan jarak ke objek:</div>
-                    <div class="input-group">
-                        <input type="number" class="cal-input" id="manualDistance" placeholder="Contoh: 1.5" step="0.1" min="0.1">
-                        <span style="color: rgba(255,255,255,0.5); display: flex; align-items: center; font-size: 14px;">meter</span>
-                    </div>
-                    <button class="btn-primary" id="manualCalBtn">Kalibrasi Manual</button>
-                </div>
-
-                <button class="btn-secondary" id="resetCalBtn">Reset Kalibrasi</button>
-            </div>
-        </div>
-
-        <div class="history-panel" id="historyPanel">
-            <div class="history-header">
-                <span class="history-title">Riwayat Pengukuran</span>
-                <button class="history-close" id="closeHistory">✕</button>
-            </div>
-            <div class="history-list" id="historyList">
-                <div class="history-empty">Belum ada pengukuran</div>
-            </div>
-        </div>
-
-        <div class="toast" id="toast"></div>
+    <!-- Instruction -->
+    <div class="instruction" id="instruction">
+        <div style="font-size: 40px; margin-bottom: 15px;">📏</div>
+        Ketuk layar untuk menambahkan titik<br>
+        Geser untuk mengukur
     </div>
+
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <div class="top-btn" id="historyBtn">Riwayat</div>
+        <div class="top-title">Measure</div>
+        <div class="top-btn" id="unitBtn">cm</div>
+    </div>
+
+    <!-- Measurement Display -->
+    <div class="measure-display" id="measureDisplay" style="display: none;">
+        <div class="measure-value" id="measureValue">0.00</div>
+        <div class="measure-unit" id="measureUnit">cm</div>
+    </div>
+
+    <!-- Bottom Controls -->
+    <div class="bottom-controls">
+        <div class="tab-bar">
+            <button class="tab-btn active" data-tab="measure">Measure</button>
+            <button class="tab-btn" data-tab="level">Level</button>
+        </div>
+        <div class="action-buttons">
+            <button class="action-btn clear-btn" id="clearBtn">
+                <span>Hapus</span>
+            </button>
+            <button class="action-btn shutter" id="shutterBtn"></button>
+            <button class="action-btn" id="undoBtn">
+                <span>Undo</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Level View -->
+    <div class="level-view" id="levelView">
+        <div class="level-circle">
+            <div class="level-cross"></div>
+            <div class="level-bubble" id="levelBubble"></div>
+        </div>
+        <div class="level-value" id="levelValue">0°</div>
+        <div class="level-label">Geser perangkat untuk melihat kemiringan</div>
+    </div>
+
+    <!-- History Panel -->
+    <div class="history-panel" id="historyPanel">
+        <div class="history-header">
+            <div class="history-title">Riwayat Pengukuran</div>
+            <div class="history-close" id="historyClose">Selesai</div>
+        </div>
+        <div class="history-list" id="historyList">
+            <div class="history-empty">Belum ada pengukuran</div>
+        </div>
+    </div>
+
+    <!-- Unit Selector -->
+    <div class="overlay" id="overlay"></div>
+    <div class="unit-selector" id="unitSelector">
+        <div class="unit-selector-title">Pilih Satuan</div>
+        <div class="unit-option selected" data-unit="cm">Sentimeter (cm)</div>
+        <div class="unit-option" data-unit="m">Meter (m)</div>
+        <div class="unit-option" data-unit="in">Inci (in)</div>
+        <div class="unit-option" data-unit="ft">Kaki (ft)</div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
 
     <script>
-        const state = {
-            mode: 'distance',
-            unit: 'm',
-            points: [],
-            tempPoints: [],
-            measurements: [],
-            calibration: {
-                isCalibrated: false,
-                pixelsPerMeter: null,
-                referenceName: '',
-                referenceSize: 0
-            },
-            isCalibrating: false,
-            calReference: null,
-            currentDistance: 0,
-            stream: null,
-            deviceOrientation: { alpha: 0, beta: 0, gamma: 0 },
-            canvasReady: false
-        };
+        // ===== STATE =====
+        let points = [];
+        let lines = [];
+        let currentUnit = 'cm';
+        let currentTab = 'measure';
+        let isDragging = false;
+        let dragPointIndex = -1;
+        let history = JSON.parse(localStorage.getItem('measureHistory') || '[]');
 
-        const REFERENCE_OBJECTS = {
-            creditcard: { name: 'Kartu Kredit', width: 0.0856, height: 0.0540 },
-            idcard: { name: 'KTP/SIM', width: 0.0850, height: 0.0540 },
-            a4width: { name: 'Kertas A4', width: 0.210, height: 0.297 },
-            ruler: { name: 'Penggaris', width: 0.30, height: 0.03 }
-        };
-
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
+        // ===== DOM ELEMENTS =====
+        const canvas = document.getElementById('measureCanvas');
         const ctx = canvas.getContext('2d');
-        const loadingScreen = document.getElementById('loadingScreen');
+        const measureDisplay = document.getElementById('measureDisplay');
+        const measureValue = document.getElementById('measureValue');
+        const measureUnit = document.getElementById('measureUnit');
+        const instruction = document.getElementById('instruction');
+        const levelView = document.getElementById('levelView');
+        const levelBubble = document.getElementById('levelBubble');
+        const levelValue = document.getElementById('levelValue');
+        const historyPanel = document.getElementById('historyPanel');
+        const historyList = document.getElementById('historyList');
+        const unitSelector = document.getElementById('unitSelector');
+        const overlay = document.getElementById('overlay');
         const toast = document.getElementById('toast');
 
-        async function initCamera() {
-            try {
-                const constraints = {
-                    video: {
-                        facingMode: { ideal: 'environment' },
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 }
-                    }
-                };
-
-                state.stream = await navigator.mediaDevices.getUserMedia(constraints);
-                video.srcObject = state.stream;
-                
-                video.onloadedmetadata = () => {
-                    canvas.width = video.videoWidth || window.innerWidth * 2;
-                    canvas.height = video.videoHeight || window.innerHeight * 2;
-                    state.canvasReady = true;
-                    loadingScreen.classList.add('hidden');
-                    setTimeout(() => loadingScreen.style.display = 'none', 500);
-                    showToast('Kamera siap! Ketuk layar untuk mulai mengukur');
-                };
-            } catch (err) {
-                console.error('Camera error:', err);
-                loadingScreen.innerHTML = `
-                    <div style="text-align: center; padding: 20px;">
-                        <div style="font-size: 40px; margin-bottom: 16px;">📷</div>
-                        <div style="font-size: 18px; margin-bottom: 8px; color: #ff3b30;">Gagal mengakses kamera</div>
-                        <div style="font-size: 14px; opacity: 0.6;">
-                            Pastikan Anda menggunakan HTTPS dan memberikan izin kamera
-                        </div>
-                    </div>
-                `;
-            }
+        // ===== CANVAS SETUP =====
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            draw();
         }
 
-        function initOrientation() {
-            if (window.DeviceOrientationEvent) {
-                window.addEventListener('deviceorientation', (e) => {
-                    state.deviceOrientation = {
-                        beta: e.beta || 0,
-                        gamma: e.gamma || 0
-                    };
-                    if (state.mode === 'level') updateLevel();
-                });
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // ===== DRAWING =====
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw lines
+            for (let i = 0; i < points.length - 1; i++) {
+                const p1 = points[i];
+                const p2 = points[i + 1];
+
+                // Line
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.strokeStyle = '#ffcc00';
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+
+                // Measurement label on line
+                const midX = (p1.x + p2.x) / 2;
+                const midY = (p1.y + p2.y) / 2;
+                const dist = getDistance(p1, p2);
+                const converted = convertDistance(dist);
+
+                // Label background
+                const text = converted.value.toFixed(2) + ' ' + converted.unit;
+                ctx.font = 'bold 14px -apple-system, sans-serif';
+                const textWidth = ctx.measureText(text).width;
+
+                ctx.fillStyle = 'rgba(0,0,0,0.8)';
+                ctx.beginPath();
+                ctx.roundRect(midX - textWidth/2 - 8, midY - 12, textWidth + 16, 24, 6);
+                ctx.fill();
+
+                // Label text
+                ctx.fillStyle = '#ffcc00';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(text, midX, midY);
             }
-        }
 
-        function updateLevel() {
-            const bubble = document.getElementById('levelBubble');
-            const valueEl = document.getElementById('levelValue');
-            const beta = state.deviceOrientation.beta;
-            const gamma = state.deviceOrientation.gamma;
+            // Draw points
+            points.forEach((point, index) => {
+                // Outer circle
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 12, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 204, 0, 0.3)';
+                ctx.fill();
 
-            const maxOffset = 70;
-            const x = Math.max(-maxOffset, Math.min(maxOffset, gamma * 2));
-            const y = Math.max(-maxOffset, Math.min(maxOffset, beta * 2));
+                // Inner circle
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 8, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffcc00';
+                ctx.fill();
 
-            bubble.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+                // White border
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 8, 0, Math.PI * 2);
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
 
-            const isLevel = Math.abs(beta) < 1.5 && Math.abs(gamma) < 1.5;
-            bubble.classList.toggle('off-level', !isLevel);
+                // Point label
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 12px -apple-system, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(index + 1, point.x, point.y + 4);
+            });
 
-            const angle = Math.sqrt(beta * beta + gamma * gamma).toFixed(1);
-            valueEl.textContent = `${angle}°`;
-            valueEl.style.color = isLevel ? '#34D399' : '#F59E0B';
+            // Update display
+            updateDisplay();
         }
 
         function getDistance(p1, p2) {
-            const dx = p2.x - p1.x;
-            const dy = p2.y - p1.y;
-            return Math.sqrt(dx * dx + dy * dy);
+            return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
         }
 
-        function pixelsToReal(pixels) {
-            if (!state.calibration.isCalibrated || !state.calibration.pixelsPerMeter) {
-                return pixels * 0.001;
-            }
-            return pixels / state.calibration.pixelsPerMeter;
-        }
+        function convertDistance(pixels) {
+            // Simulasi: 100 pixels = 2.54 cm (1 inch)
+            const cm = (pixels / 100) * 2.54;
 
-        function formatValue(value) {
-            if (state.unit === 'cm') return (value * 100).toFixed(1);
-            if (state.unit === 'ft') return (value * 3.28084).toFixed(2);
-            if (state.unit === 'in') return (value * 39.3701).toFixed(2);
-            if (value < 1) return value.toFixed(3);
-            return value.toFixed(2);
-        }
-
-        function getUnitLabel() {
-            const labels = { m: 'm', cm: 'cm', ft: 'ft', in: 'in' };
-            return labels[state.unit];
-        }
-
-        function drawPoint(x, y, label, color = '#007AFF') {
-            ctx.beginPath();
-            ctx.arc(x, y, 10, 0, Math.PI * 2);
-            ctx.fillStyle = color + '40';
-            ctx.fill();
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 3;
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.arc(x, y, 3, 0, Math.PI * 2);
-            ctx.fillStyle = color;
-            ctx.fill();
-
-            if (label) {
-                ctx.fillStyle = color;
-                ctx.font = 'bold 13px -apple-system, sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText(label, x, y - 18);
+            switch(currentUnit) {
+                case 'cm': return { value: cm, unit: 'cm' };
+                case 'm': return { value: cm / 100, unit: 'm' };
+                case 'in': return { value: pixels / 100, unit: 'in' };
+                case 'ft': return { value: (pixels / 100) / 12, unit: 'ft' };
+                default: return { value: cm, unit: 'cm' };
             }
         }
 
-        function drawLine(p1, p2, color = '#007AFF', width = 3) {
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.strokeStyle = color;
-            ctx.lineWidth = width;
-            ctx.lineCap = 'round';
-            ctx.stroke();
-
-            const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-            const arrowSize = 10;
-            
-            [p1, p2].forEach((p, i) => {
-                const a = i === 0 ? angle + Math.PI : angle;
-                ctx.beginPath();
-                ctx.moveTo(p.x, p.y);
-                ctx.lineTo(
-                    p.x - arrowSize * Math.cos(a - 0.5),
-                    p.y - arrowSize * Math.sin(a - 0.5)
-                );
-                ctx.moveTo(p.x, p.y);
-                ctx.lineTo(
-                    p.x - arrowSize * Math.cos(a + 0.5),
-                    p.y - arrowSize * Math.sin(a + 0.5)
-                );
-                ctx.strokeStyle = color;
-                ctx.lineWidth = 2;
-                ctx.stroke();
-            });
-        }
-
-        function drawMeasurementLabel(p1, p2, pixels) {
-            const midX = (p1.x + p2.x) / 2;
-            const midY = (p1.y + p2.y) / 2;
-            const realValue = pixelsToReal(pixels);
-            const value = formatValue(realValue);
-            const label = `${value} ${getUnitLabel()}`;
-
-            ctx.font = 'bold 16px -apple-system, sans-serif';
-            const textWidth = ctx.measureText(label).width;
-            const padding = 12;
-            const boxWidth = textWidth + padding * 2;
-            const boxHeight = 32;
-
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-            ctx.beginPath();
-            ctx.moveTo(midX - boxWidth/2 + 16, midY - boxHeight/2);
-            ctx.lineTo(midX + boxWidth/2 - 16, midY - boxHeight/2);
-            ctx.quadraticCurveTo(midX + boxWidth/2, midY - boxHeight/2, midX + boxWidth/2, midY - boxHeight/2 + 16);
-            ctx.lineTo(midX + boxWidth/2, midY + boxHeight/2 - 16);
-            ctx.quadraticCurveTo(midX + boxWidth/2, midY + boxHeight/2, midX + boxWidth/2 - 16, midY + boxHeight/2);
-            ctx.lineTo(midX - boxWidth/2 + 16, midY + boxHeight/2);
-            ctx.quadraticCurveTo(midX - boxWidth/2, midY + boxHeight/2, midX - boxWidth/2, midY + boxHeight/2 - 16);
-            ctx.lineTo(midX - boxWidth/2, midY - boxHeight/2 + 16);
-            ctx.quadraticCurveTo(midX - boxWidth/2, midY - boxHeight/2, midX - boxWidth/2 + 16, midY - boxHeight/2);
-            ctx.closePath();
-            ctx.fill();
-
-            ctx.strokeStyle = '#34D399';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            ctx.fillStyle = '#34D399';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(label, midX, midY);
-        }
-
-        function drawArea() {
-            if (state.points.length < 3) return;
-
-            ctx.beginPath();
-            ctx.moveTo(state.points[0].x, state.points[0].y);
-            for (let i = 1; i < state.points.length; i++) {
-                ctx.lineTo(state.points[i].x, state.points[i].y);
-            }
-            ctx.closePath();
-
-            ctx.fillStyle = 'rgba(0, 122, 255, 0.15)';
-            ctx.fill();
-            ctx.strokeStyle = '#007AFF';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([8, 6]);
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            let area = 0;
-            for (let i = 0; i < state.points.length; i++) {
-                const j = (i + 1) % state.points.length;
-                area += state.points[i].x * state.points[j].y;
-                area -= state.points[j].x * state.points[i].y;
-            }
-            area = Math.abs(area) / 2;
-
-            const realArea = area / (state.calibration.pixelsPerMeter ** 2);
-            let displayArea = realArea;
-            let unit2 = 'm²';
-
-            if (state.unit === 'cm') { displayArea *= 10000; unit2 = 'cm²'; }
-            else if (state.unit === 'ft') { displayArea *= 10.764; unit2 = 'ft²'; }
-            else if (state.unit === 'in') { displayArea *= 1550; unit2 = 'in²'; }
-
-            const centroid = getCentroid(state.points);
-            const label = `${displayArea.toFixed(2)} ${unit2}`;
-
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.beginPath();
-            ctx.arc(centroid.x, centroid.y, 45, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = '#34D399';
-            ctx.font = 'bold 15px -apple-system, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(label, centroid.x, centroid.y);
-        }
-
-        function getCentroid(points) {
-            let x = 0, y = 0;
-            points.forEach(p => { x += p.x; y += p.y; });
-            return { x: x / points.length, y: y / points.length };
-        }
-
-        function redrawCanvas() {
-            if (!state.canvasReady) return;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            for (let i = 0; i < state.points.length - 1; i++) {
-                const p1 = state.points[i];
-                const p2 = state.points[i + 1];
-                drawLine(p1, p2);
-                const dist = getDistance(p1, p2);
-                drawMeasurementLabel(p1, p2, dist);
-            }
-
-            state.points.forEach((p, i) => {
-                drawPoint(p.x, p.y, `${i + 1}`);
-            });
-
-            if (state.mode === 'area' && state.points.length >= 3) {
-                drawArea();
-            }
-
-            if (state.isCalibrating && state.tempPoints.length === 2) {
-                drawLine(state.tempPoints[0], state.tempPoints[1], '#F59E0B', 4);
-                const dist = getDistance(state.tempPoints[0], state.tempPoints[1]);
-                const midX = (state.tempPoints[0].x + state.tempPoints[1].x) / 2;
-                const midY = (state.tempPoints[0].y + state.tempPoints[1].y) / 2;
-                
-                ctx.fillStyle = 'rgba(245, 158, 11, 0.9)';
-                ctx.font = 'bold 14px -apple-system, sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText(`${Math.round(dist)} px`, midX, midY - 20);
+        function updateDisplay() {
+            if (points.length >= 2) {
+                let totalPixels = 0;
+                for (let i = 0; i < points.length - 1; i++) {
+                    totalPixels += getDistance(points[i], points[i + 1]);
+                }
+                const converted = convertDistance(totalPixels);
+                measureValue.textContent = converted.value.toFixed(2);
+                measureUnit.textContent = converted.unit;
+                measureDisplay.style.display = 'block';
+            } else {
+                measureDisplay.style.display = 'none';
             }
         }
 
-        function getCanvasPoint(e) {
+        // ===== TOUCH/MOUSE HANDLING =====
+        function getPoint(e) {
             const rect = canvas.getBoundingClientRect();
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            
-            const x = (clientX - rect.left) * (canvas.width / rect.width);
-            const y = (clientY - rect.top) * (canvas.height / rect.height);
-            
-            return { x, y };
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
         }
 
-        function handleTap(e) {
-            if (state.mode === 'level') return;
-            if (document.getElementById('calModal').classList.contains('active')) return;
-            if (document.getElementById('historyPanel').classList.contains('active')) return;
+        function findNearestPoint(pos) {
+            for (let i = 0; i < points.length; i++) {
+                const dist = Math.sqrt(Math.pow(pos.x - points[i].x, 2) + Math.pow(pos.y - points[i].y, 2));
+                if (dist < 30) return i;
+            }
+            return -1;
+        }
 
+        canvas.addEventListener('touchstart', handleStart, {passive: false});
+        canvas.addEventListener('mousedown', handleStart);
+
+        function handleStart(e) {
+            if (currentTab !== 'measure') return;
             e.preventDefault();
-            const point = getCanvasPoint(e);
 
-            if (state.isCalibrating) {
-                handleCalibrationTap(point);
-                return;
-            }
+            const pos = getPoint(e);
+            const nearest = findNearestPoint(pos);
 
-            if (state.mode === 'distance') {
-                handleDistanceMode(point);
-            } else if (state.mode === 'area') {
-                handleAreaMode(point);
-            }
-
-            redrawCanvas();
-            updateUI();
-        }
-
-        function handleDistanceMode(point) {
-            if (state.points.length >= 2) {
-                saveMeasurement();
-                state.points = [point];
-                updateInstruction('Ketik titik kedua untuk jarak baru');
-            } else if (state.points.length === 0) {
-                state.points.push(point);
-                updateInstruction('Ketik titik kedua');
+            if (nearest !== -1) {
+                isDragging = true;
+                dragPointIndex = nearest;
             } else {
-                state.points.push(point);
-                const dist = getDistance(state.points[0], state.points[1]);
-                const realDist = pixelsToReal(dist);
-                document.getElementById('currentValue').textContent = formatValue(realDist);
-                updateInstruction('Ketik lagi untuk ukur baru');
+                points.push(pos);
+                instruction.classList.add('hidden');
             }
+
+            draw();
         }
 
-        function handleAreaMode(point) {
-            state.points.push(point);
-            if (state.points.length >= 3) {
-                updateInstruction(`Titik ${state.points.length} - Ketik lagi atau simpan`);
-            } else {
-                updateInstruction(`Ketik titik ${state.points.length + 1}`);
-            }
+        canvas.addEventListener('touchmove', handleMove, {passive: false});
+        canvas.addEventListener('mousemove', handleMove);
+
+        function handleMove(e) {
+            if (!isDragging || dragPointIndex === -1) return;
+            e.preventDefault();
+
+            const pos = getPoint(e);
+            points[dragPointIndex] = pos;
+            draw();
         }
 
-        function handleCalibrationTap(point) {
-            if (state.tempPoints.length === 0) {
-                state.tempPoints.push(point);
-                updateInstruction('Ketik ujung lain objek referensi');
-            } else if (state.tempPoints.length === 1) {
-                state.tempPoints.push(point);
-                const pixelDist = getDistance(state.tempPoints[0], state.tempPoints[1]);
-                const refSize = state.calReference.width;
-                state.calibration.pixelsPerMeter = pixelDist / refSize;
-                state.calibration.isCalibrated = true;
-                state.calibration.referenceName = state.calReference.name;
-                state.calibration.referenceSize = refSize;
-                
-                finishCalibration();
-            }
-            redrawCanvas();
+        canvas.addEventListener('touchend', handleEnd);
+        canvas.addEventListener('mouseup', handleEnd);
+
+        function handleEnd() {
+            isDragging = false;
+            dragPointIndex = -1;
         }
 
-        function startCalibration(refKey) {
-            state.calReference = REFERENCE_OBJECTS[refKey];
-            state.isCalibrating = true;
-            state.tempPoints = [];
-            state.points = [];
-            
-            document.getElementById('calModal').classList.remove('active');
-            document.getElementById('guideOverlay').classList.add('active');
-            
-            const guideText = document.getElementById('guideText');
-            guideText.innerHTML = `Letakkan <b>${state.calReference.name}</b> di dalam bingkai<br>Sejajarkan dengan kamera`;
-            
-            updateInstruction('Ketik ujung kiri objek');
-        }
+        // ===== TAB SWITCHING =====
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentTab = btn.dataset.tab;
 
-        function finishCalibration() {
-            state.isCalibrating = false;
-            state.tempPoints = [];
-            document.getElementById('guideOverlay').classList.remove('active');
-            
-            const badge = document.getElementById('calBadge');
-            const calText = document.getElementById('calText');
-            badge.classList.add('calibrated');
-            calText.textContent = `Terkalibrasi: ${state.calReference.name}`;
-            
-            showToast(`Kalibrasi berhasil! ${state.calReference.name}`);
-            redrawCanvas();
-            updateInstruction('Kalibrasi selesai, mulai mengukur!');
-        }
-
-        function resetCalibration() {
-            state.calibration = {
-                isCalibrated: false,
-                pixelsPerMeter: null,
-                referenceName: '',
-                referenceSize: 0
-            };
-            
-            const badge = document.getElementById('calBadge');
-            const calText = document.getElementById('calText');
-            badge.classList.remove('calibrated');
-            calText.textContent = 'Kalibrasi diperlukan';
-            
-            showToast('Kalibrasi direset');
-        }
-
-        function saveMeasurement() {
-            if (state.points.length < 2) return;
-
-            let type, value, unit;
-            
-            if (state.mode === 'distance') {
-                const dist = getDistance(state.points[0], state.points[1]);
-                const realDist = pixelsToReal(dist);
-                type = 'Jarak';
-                value = formatValue(realDist);
-                unit = getUnitLabel();
-            } else if (state.mode === 'area' && state.points.length >= 3) {
-                let area = 0;
-                for (let i = 0; i < state.points.length; i++) {
-                    const j = (i + 1) % state.points.length;
-                    area += state.points[i].x * state.points[j].y;
-                    area -= state.points[j].x * state.points[i].y;
+                if (currentTab === 'level') {
+                    levelView.classList.add('active');
+                    startLevel();
+                } else {
+                    levelView.classList.remove('active');
+                    stopLevel();
                 }
-                area = Math.abs(area) / 2;
-                const realArea = area / (state.calibration.pixelsPerMeter ** 2);
-                let displayArea = realArea;
-                unit = state.unit === 'm' ? 'm²' : 
-                       state.unit === 'cm' ? 'cm²' : 
-                       state.unit === 'ft' ? 'ft²' : 'in²';
-                if (state.unit === 'cm') displayArea *= 10000;
-                else if (state.unit === 'ft') displayArea *= 10.764;
-                else if (state.unit === 'in') displayArea *= 1550;
-                type = 'Area';
-                value = displayArea.toFixed(2);
-            } else {
-                return;
+            });
+        });
+
+        // ===== LEVEL FUNCTIONALITY =====
+        let levelInterval;
+
+        function startLevel() {
+            if (window.DeviceOrientationEvent) {
+                window.addEventListener('deviceorientation', handleOrientation);
             }
 
-            const measurement = {
-                id: Date.now(),
-                type,
-                value,
-                unit,
-                timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-            };
-
-            state.measurements.unshift(measurement);
-            updateHistoryList();
-            showToast(`${type}: ${value} ${unit}`);
-            
-            const captureBtn = document.getElementById('captureBtn');
-            captureBtn.classList.add('save-mode');
-            setTimeout(() => captureBtn.classList.remove('save-mode'), 300);
+            // Fallback untuk desktop testing
+            levelInterval = setInterval(() => {
+                if (!window.DeviceOrientationEvent) {
+                    // Simulasi untuk testing desktop
+                    const time = Date.now() / 1000;
+                    const beta = Math.sin(time) * 20;
+                    const gamma = Math.cos(time * 0.7) * 20;
+                    updateLevel(beta, gamma);
+                }
+            }, 50);
         }
 
-        function updateHistoryList() {
-            const list = document.getElementById('historyList');
-            if (state.measurements.length === 0) {
-                list.innerHTML = '<div class="history-empty">Belum ada pengukuran</div>';
+        function stopLevel() {
+            window.removeEventListener('deviceorientation', handleOrientation);
+            clearInterval(levelInterval);
+        }
+
+        function handleOrientation(e) {
+            const beta = e.beta || 0;   // Front-back tilt
+            const gamma = e.gamma || 0; // Left-right tilt
+            updateLevel(beta, gamma);
+        }
+
+        function updateLevel(beta, gamma) {
+            const maxTilt = 20;
+            const x = Math.max(-maxTilt, Math.min(maxTilt, gamma)) / maxTilt * 100;
+            const y = Math.max(-maxTilt, Math.min(maxTilt, beta)) / maxTilt * 100;
+
+            levelBubble.style.transform = `translate(${x}px, ${y}px)`;
+
+            const isCentered = Math.abs(beta) < 1 && Math.abs(gamma) < 1;
+            if (isCentered) {
+                levelBubble.classList.add('centered');
+            } else {
+                levelBubble.classList.remove('centered');
+            }
+
+            const angle = Math.sqrt(beta * beta + gamma * gamma).toFixed(1);
+            levelValue.textContent = angle + '°';
+        }
+
+        // ===== BUTTON ACTIONS =====
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            points = [];
+            instruction.classList.remove('hidden');
+            measureDisplay.style.display = 'none';
+            draw();
+            showToast('Semua titik dihapus');
+        });
+
+        document.getElementById('undoBtn').addEventListener('click', () => {
+            if (points.length > 0) {
+                points.pop();
+                if (points.length === 0) {
+                    instruction.classList.remove('hidden');
+                    measureDisplay.style.display = 'none';
+                }
+                draw();
+            }
+        });
+
+        document.getElementById('shutterBtn').addEventListener('click', () => {
+            if (points.length >= 2) {
+                let totalPixels = 0;
+                for (let i = 0; i < points.length - 1; i++) {
+                    totalPixels += getDistance(points[i], points[i + 1]);
+                }
+                const converted = convertDistance(totalPixels);
+
+                const measurement = {
+                    value: converted.value.toFixed(2),
+                    unit: converted.unit,
+                    date: new Date().toLocaleString('id-ID'),
+                    points: points.length
+                };
+
+                history.unshift(measurement);
+                localStorage.setItem('measureHistory', JSON.stringify(history));
+
+                showToast(`Tersimpan: ${converted.value.toFixed(2)} ${converted.unit}`);
+            } else {
+                showToast('Tambahkan minimal 2 titik untuk menyimpan');
+            }
+        });
+
+        // ===== HISTORY =====
+        document.getElementById('historyBtn').addEventListener('click', () => {
+            renderHistory();
+            historyPanel.classList.add('active');
+        });
+
+        document.getElementById('historyClose').addEventListener('click', () => {
+            historyPanel.classList.remove('active');
+        });
+
+        function renderHistory() {
+            if (history.length === 0) {
+                historyList.innerHTML = '<div class="history-empty">Belum ada pengukuran</div>';
                 return;
             }
 
-            list.innerHTML = state.measurements.map(m => `
+            historyList.innerHTML = history.map((item, index) => `
                 <div class="history-item">
-                    <div class="history-info">
-                        <span class="history-type">${m.type}</span>
-                        <span class="history-time">${m.timestamp}</span>
+                    <div>
+                        <div class="history-item-value">${item.value} ${item.unit}</div>
+                        <div class="history-item-date">${item.date} • ${item.points} titik</div>
                     </div>
-                    <span class="history-value">${m.value} ${m.unit}</span>
+                    <div class="history-item-delete" onclick="deleteHistory(${index})">Hapus</div>
                 </div>
             `).join('');
         }
 
-        function updateInstruction(text) {
-            document.getElementById('instructions').textContent = text;
-        }
+        window.deleteHistory = function(index) {
+            history.splice(index, 1);
+            localStorage.setItem('measureHistory', JSON.stringify(history));
+            renderHistory();
+            showToast('Dihapus dari riwayat');
+        };
 
-        function updateUI() {
-            document.getElementById('undoBtn').disabled = state.points.length === 0 && state.tempPoints.length === 0;
-        }
+        // ===== UNIT SELECTOR =====
+        document.getElementById('unitBtn').addEventListener('click', () => {
+            unitSelector.classList.add('active');
+            overlay.classList.add('active');
+        });
 
+        overlay.addEventListener('click', () => {
+            unitSelector.classList.remove('active');
+            overlay.classList.remove('active');
+        });
+
+        document.querySelectorAll('.unit-option').forEach(option => {
+            option.addEventListener('click', () => {
+                document.querySelectorAll('.unit-option').forEach(o => o.classList.remove('selected'));
+                option.classList.add('selected');
+                currentUnit = option.dataset.unit;
+                document.getElementById('unitBtn').textContent = currentUnit;
+                unitSelector.classList.remove('active');
+                overlay.classList.remove('active');
+                draw();
+                showToast('Satuan diubah ke ' + option.textContent);
+            });
+        });
+
+        // ===== TOAST =====
         function showToast(message) {
             toast.textContent = message;
             toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 2500);
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
         }
 
-        function takeScreenshot() {
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = canvas.width;
-            tempCanvas.height = canvas.height;
-            const tempCtx = tempCanvas.getContext('2d');
-            
-            tempCtx.drawImage(video, 0, 0);
-            tempCtx.drawImage(canvas, 0, 0);
-            
-            tempCtx.fillStyle = 'rgba(255,255,255,0.8)';
-            tempCtx.font = '12px -apple-system, sans-serif';
-            tempCtx.fillText('AR Measure Pro', 20, canvas.height - 20);
-            
-            const link = document.createElement('a');
-            link.download = `measure_${Date.now()}.jpg`;
-            link.href = tempCanvas.toDataURL('image/jpeg', 0.92);
-            link.click();
-            
-            showToast('Screenshot tersimpan!');
+        // ===== INITIALIZE =====
+        draw();
+
+        // Request permission for iOS 13+ device orientation
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            // Will need user interaction to request permission
         }
-
-        canvas.addEventListener('click', handleTap);
-        canvas.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) handleTap(e);
-        }, { passive: false });
-
-        document.querySelectorAll('.mode-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                state.mode = btn.dataset.mode;
-                state.points = [];
-                state.tempPoints = [];
-                redrawCanvas();
-
-                const crosshair = document.getElementById('crosshairContainer');
-                const level = document.getElementById('levelContainer');
-                const display = document.getElementById('measurementDisplay');
-
-                if (state.mode === 'level') {
-                    crosshair.style.display = 'none';
-                    level.classList.add('active');
-                    display.style.opacity = '0.3';
-                    updateInstruction('Gunakan sebagai waterpas digital');
-                } else {
-                    crosshair.style.display = 'block';
-                    level.classList.remove('active');
-                    display.style.opacity = '1';
-                    updateInstruction(state.mode === 'distance' 
-                        ? 'Ketuk untuk titik pertama' 
-                        : 'Ketuk untuk sudut pertama area');
-                }
-            });
-        });
-
-        document.getElementById('unitToggle').addEventListener('click', () => {
-            const units = ['m', 'cm', 'ft', 'in'];
-            const idx = units.indexOf(state.unit);
-            state.unit = units[(idx + 1) % units.length];
-            document.getElementById('unitToggle').textContent = getUnitLabel();
-            
-            if (state.points.length >= 2 && state.mode === 'distance') {
-                const dist = getDistance(state.points[0], state.points[1]);
-                document.getElementById('currentValue').textContent = formatValue(pixelsToReal(dist));
-            }
-            redrawCanvas();
-        });
-
-        document.getElementById('captureBtn').addEventListener('click', () => {
-            if (state.mode === 'area' && state.points.length >= 3) {
-                saveMeasurement();
-                state.points = [];
-                redrawCanvas();
-                updateInstruction('Area tersimpan! Ketik untuk baru');
-            } else if (state.mode === 'distance' && state.points.length === 2) {
-                saveMeasurement();
-                state.points = [];
-                document.getElementById('currentValue').textContent = '0.00';
-                updateInstruction('Jarak tersimpan! Ketik untuk baru');
-            } else {
-                takeScreenshot();
-            }
-        });
-
-        document.getElementById('undoBtn').addEventListener('click', () => {
-            if (state.isCalibrating && state.tempPoints.length > 0) {
-                state.tempPoints.pop();
-            } else if (state.points.length > 0) {
-                state.points.pop();
-                if (state.points.length === 0) {
-                    document.getElementById('currentValue').textContent = '0.00';
-                }
-            }
-            redrawCanvas();
-            updateUI();
-        });
-
-        document.getElementById('clearBtn').addEventListener('click', () => {
-            state.points = [];
-            state.tempPoints = [];
-            redrawCanvas();
-            document.getElementById('currentValue').textContent = '0.00';
-            updateInstruction('Ketik untuk memulai');
-            updateUI();
-        });
-
-        document.getElementById('flashBtn').addEventListener('click', async () => {
-            if (!state.stream) return;
-            const track = state.stream.getVideoTracks()[0];
-            try {
-                const capabilities = track.getCapabilities();
-                if (capabilities.torch) {
-                    const settings = track.getSettings();
-                    const newTorch = !settings.torch;
-                    await track.applyConstraints({ advanced: [{ torch: newTorch }] });
-                    document.getElementById('flashBtn').classList.toggle('active-state', newTorch);
-                    showToast(newTorch ? 'Flash menyala' : 'Flash mati');
-                } else {
-                    showToast('Flash tidak didukung');
-                }
-            } catch (err) {
-                showToast('Gagal mengontrol flash');
-            }
-        });
-
-        document.getElementById('calBadge').addEventListener('click', () => {
-            document.getElementById('calModal').classList.add('active');
-        });
-
-        document.querySelectorAll('.cal-option').forEach(opt => {
-            opt.addEventListener('click', () => {
-                startCalibration(opt.dataset.ref);
-            });
-        });
-
-        document.getElementById('guideConfirm').addEventListener('click', () => {
-            document.getElementById('guideOverlay').classList.remove('active');
-            updateInstruction('Ketik ujung kiri objek referensi');
-        });
-
-        document.getElementById('guideCancel').addEventListener('click', () => {
-            state.isCalibrating = false;
-            state.tempPoints = [];
-            state.calReference = null;
-            document.getElementById('guideOverlay').classList.remove('active');
-            redrawCanvas();
-            updateInstruction('Kalibrasi dibatalkan');
-        });
-
-        document.getElementById('manualCalBtn').addEventListener('click', () => {
-            const dist = parseFloat(document.getElementById('manualDistance').value);
-            if (dist && dist > 0) {
-                state.calibration.pixelsPerMeter = 1000 / dist;
-                state.calibration.isCalibrated = true;
-                state.calibration.referenceName = 'Manual';
-                state.calibration.referenceSize = dist;
-                
-                const badge = document.getElementById('calBadge');
-                const calText = document.getElementById('calText');
-                badge.classList.add('calibrated');
-                calText.textContent = `Terkalibrasi: ${dist}m manual`;
-                
-                document.getElementById('calModal').classList.remove('active');
-                showToast('Kalibrasi manual berhasil!');
-            }
-        });
-
-        document.getElementById('resetCalBtn').addEventListener('click', () => {
-            resetCalibration();
-        });
-
-        document.getElementById('closeCalModal').addEventListener('click', () => {
-            document.getElementById('calModal').classList.remove('active');
-        });
-
-        document.getElementById('historyBtn').addEventListener('click', () => {
-            document.getElementById('historyPanel').classList.add('active');
-        });
-
-        document.getElementById('closeHistory').addEventListener('click', () => {
-            document.getElementById('historyPanel').classList.remove('active');
-        });
-
-        document.getElementById('calModal').addEventListener('click', (e) => {
-            if (e.target === e.currentTarget) {
-                e.currentTarget.classList.remove('active');
-            }
-        });
-
-        let lastTouchEnd = 0;
-        document.addEventListener('touchend', (e) => {
-            const now = Date.now();
-            if (now - lastTouchEnd <= 300) e.preventDefault();
-            lastTouchEnd = now;
-        }, { passive: false });
-
-        document.addEventListener('contextmenu', e => e.preventDefault());
-
-        initCamera();
-        initOrientation();
     </script>
 </body>
 </html>
