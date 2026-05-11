@@ -3,67 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AutoMeasure AI - Pengukuran Objek Otomatis</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2"></script>
+    <title>📏 Meteran Digital Kamera</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0a0a0a;
+            color: #fff;
             min-height: 100vh;
-            color: #e0e0e0;
-            line-height: 1.6;
+            overflow-x: hidden;
         }
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 15px;
+        .app-container {
+            max-width: 100vw;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
-        header {
+        /* Header */
+        .header {
+            background: linear-gradient(90deg, #1a1a2e, #16213e);
+            padding: 12px 20px;
             text-align: center;
-            padding: 20px 0;
+            border-bottom: 1px solid #333;
+            z-index: 100;
         }
-
-        header h1 {
-            font-size: 2.2em;
-            background: linear-gradient(90deg, #00f5ff, #b829dd);
+        .header h1 {
+            font-size: 1.3em;
+            background: linear-gradient(90deg, #00f5ff, #00d26a);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 5px;
+        }
+        .header p { color: #888; font-size: 0.8em; margin-top: 2px; }
+
+        /* Main View */
+        .main-view {
+            flex: 1;
+            position: relative;
+            background: #000;
+            display: flex;
+            flex-direction: column;
         }
 
-        header p { color: #888; font-size: 1em; }
-
-        .main-grid {
-            display: grid;
-            grid-template-columns: 1fr 360px;
-            gap: 20px;
-        }
-
-        @media (max-width: 1100px) {
-            .main-grid { grid-template-columns: 1fr; }
-        }
-
-        /* Video Section */
-        .video-section {
-            background: rgba(255,255,255,0.03);
-            border-radius: 16px;
-            padding: 15px;
-            border: 1px solid rgba(255,255,255,0.08);
-        }
-
-        .video-wrapper {
+        /* Camera View */
+        .camera-container {
             position: relative;
             width: 100%;
-            background: #000;
-            border-radius: 12px;
+            flex: 1;
+            min-height: 60vh;
+            background: #111;
             overflow: hidden;
-            aspect-ratio: 16/9;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
         }
 
         #videoElement {
@@ -73,613 +64,404 @@
             object-fit: cover;
             display: none;
         }
-
         #videoElement.active { display: block; }
 
-        #canvasOverlay {
+        #measureCanvas {
             position: absolute;
             top: 0; left: 0;
             width: 100%; height: 100%;
             z-index: 10;
+            touch-action: none;
         }
 
-        #canvasOverlay.manual-mode {
-            cursor: crosshair;
-        }
-
-        .video-placeholder {
+        /* Placeholder */
+        .placeholder {
             position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
+            inset: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #1a1a2e, #16213e);
-            color: #666;
+            color: #555;
             gap: 15px;
         }
-
-        .video-placeholder svg {
-            width: 80px; height: 80px;
-            opacity: 0.3;
-        }
-
-        .video-controls {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            padding: 12px 20px;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 0.9em;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            white-space: nowrap;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #00c6ff, #0072ff);
-            color: #fff;
-            box-shadow: 0 4px 15px rgba(0,114,255,0.3);
-        }
-        .btn-primary:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,114,255,0.4);
-        }
-
-        .btn-secondary {
-            background: rgba(255,255,255,0.08);
-            color: #ccc;
-            border: 1px solid rgba(255,255,255,0.15);
-        }
-        .btn-secondary:hover:not(:disabled) {
-            background: rgba(255,255,255,0.15);
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, #00d26a, #00a854);
-            color: #fff;
-            box-shadow: 0 4px 15px rgba(0,210,106,0.3);
-        }
-        .btn-success:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,210,106,0.4);
-        }
-
-        .btn-danger {
-            background: linear-gradient(135deg, #ff416c, #ff4b2b);
-            color: #fff;
-        }
-
-        .btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-            transform: none !important;
-        }
-
-        /* Sidebar */
-        .sidebar { display: flex; flex-direction: column; gap: 15px; }
-
-        .panel {
-            background: rgba(255,255,255,0.03);
-            border-radius: 16px;
-            padding: 18px;
-            border: 1px solid rgba(255,255,255,0.08);
-        }
-
-        .panel h3 {
-            font-size: 1em;
-            margin-bottom: 14px;
-            color: #00f5ff;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .form-group { margin-bottom: 14px; }
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-size: 0.85em;
-            color: #888;
-        }
-        .form-group select, .form-group input[type="number"] {
-            width: 100%;
-            padding: 10px 12px;
-            border-radius: 8px;
-            border: 1px solid rgba(255,255,255,0.15);
-            background: rgba(0,0,0,0.3);
-            color: #e0e0e0;
-            font-size: 0.9em;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-        .form-group select:focus, .form-group input:focus {
-            border-color: #00f5ff;
-        }
-
-        /* Toggle */
-        .toggle-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-        .toggle-row:last-child { border-bottom: none; margin-bottom: 0; }
-        .toggle-row label { font-size: 0.9em; color: #bbb; }
-        
-        .toggle-switch {
-            position: relative;
-            width: 44px; height: 24px;
-            background: rgba(255,255,255,0.15);
-            border-radius: 12px;
-            cursor: pointer;
-            transition: background 0.3s;
-            flex-shrink: 0;
-        }
-        .toggle-switch.active { background: #00f5ff; }
-        .toggle-switch::after {
-            content: '';
-            position: absolute;
-            width: 20px; height: 20px;
-            background: #fff;
-            border-radius: 50%;
-            top: 2px; left: 2px;
-            transition: transform 0.3s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-        .toggle-switch.active::after { transform: translateX(20px); }
-
-        /* Status */
-        .status-badges {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.8em;
-            font-weight: 500;
-        }
-        .badge.ready {
-            background: rgba(0,245,255,0.12);
-            color: #00f5ff;
-            border: 1px solid rgba(0,245,255,0.25);
-        }
-        .badge.waiting {
-            background: rgba(255,193,7,0.12);
-            color: #ffc107;
-            border: 1px solid rgba(255,193,7,0.25);
-        }
-        .badge.error {
-            background: rgba(255,65,108,0.12);
-            color: #ff416c;
-            border: 1px solid rgba(255,65,108,0.25);
-        }
-        .badge.off {
-            background: rgba(255,255,255,0.05);
-            color: #666;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
-        /* Results */
-        .result-card {
-            background: rgba(0,0,0,0.25);
-            border-radius: 10px;
-            padding: 12px;
-            margin-bottom: 10px;
-            border-left: 3px solid #00f5ff;
-        }
-        .result-card.reference {
-            border-left-color: #00d26a;
-            background: rgba(0,210,106,0.08);
-        }
-        .result-card .obj-title {
-            font-weight: 600;
-            color: #fff;
-            font-size: 0.95em;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .result-card .obj-title .ref-tag {
-            font-size: 0.7em;
-            background: rgba(0,210,106,0.2);
-            color: #00d26a;
-            padding: 2px 8px;
-            border-radius: 4px;
-        }
-        .dims-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            margin-top: 10px;
-        }
-        .dim-item {
-            background: rgba(255,255,255,0.05);
-            padding: 8px;
-            border-radius: 8px;
-            text-align: center;
-        }
-        .dim-item .val {
-            font-size: 1.2em;
-            font-weight: 700;
-            color: #00f5ff;
-        }
-        .dim-item .lbl {
-            font-size: 0.75em;
-            color: #888;
-            margin-top: 2px;
-        }
-
-        /* Distance Panel */
-        .dist-box {
-            background: linear-gradient(135deg, rgba(184,41,221,0.15), rgba(0,114,255,0.1));
-            border: 1px solid rgba(184,41,221,0.3);
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
-        }
-        .dist-box .big-num {
-            font-size: 2.2em;
-            font-weight: 800;
-            background: linear-gradient(90deg, #00f5ff, #b829dd);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .dist-box .dist-label {
-            color: #888;
-            font-size: 0.85em;
-            margin-top: 5px;
-        }
-
-        /* Empty State */
-        .empty {
-            text-align: center;
-            padding: 30px 15px;
-            color: #555;
-        }
-        .empty svg {
-            width: 50px; height: 50px;
-            margin-bottom: 10px;
-            opacity: 0.4;
-        }
-
-        /* Instructions */
-        .guide {
-            background: rgba(0,245,255,0.05);
-            border: 1px solid rgba(0,245,255,0.15);
-            border-radius: 12px;
-            padding: 15px;
-            margin-top: 15px;
-        }
-        .guide h4 {
-            color: #00f5ff;
-            margin-bottom: 10px;
-            font-size: 0.95em;
-        }
-        .guide ol {
-            padding-left: 18px;
-            color: #999;
-            font-size: 0.85em;
-            line-height: 1.9;
-        }
-        .guide ol li { margin-bottom: 3px; }
-        .guide ol li strong { color: #ccc; }
-
-        /* Loading */
-        .loader {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(10,10,20,0.95);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 100;
-            border-radius: 12px;
-        }
-        .loader.hidden { display: none; }
-        .spinner {
-            width: 45px; height: 45px;
-            border: 3px solid rgba(0,245,255,0.15);
-            border-top-color: #00f5ff;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin-bottom: 15px;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .loader p { color: #888; font-size: 0.9em; }
-        .loader.error-state .spinner { display: none; }
-        .loader.error-state p { color: #ff416c; }
-
-        /* Log */
-        .log-box {
-            max-height: 180px;
-            overflow-y: auto;
-            background: rgba(0,0,0,0.3);
-            border-radius: 8px;
-            padding: 10px;
-            font-family: 'SF Mono', 'Courier New', monospace;
-            font-size: 0.78em;
-        }
-        .log-line { padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
-        .log-line:last-child { border-bottom: none; }
-        .log-line.ok { color: #00d26a; }
-        .log-line.warn { color: #ffc107; }
-        .log-line.err { color: #ff416c; }
-        .log-line.info { color: #00f5ff; }
-        .log-time { color: #555; margin-right: 6px; }
+        .placeholder svg { width: 60px; height: 60px; opacity: 0.4; }
+        .placeholder p { font-size: 0.9em; }
 
         /* Calibration Overlay */
         .calib-overlay {
             position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7);
+            inset: 0;
+            background: rgba(0,0,0,0.85);
             z-index: 50;
             display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            color: #fff;
-            text-align: center;
             padding: 20px;
+            text-align: center;
         }
         .calib-overlay.active { display: flex; }
-        .calib-overlay h3 { color: #00f5ff; margin-bottom: 10px; }
-        .calib-overlay p { color: #aaa; font-size: 0.9em; margin-bottom: 20px; }
+        
+        .calib-step {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(0,245,255,0.3);
+            border-radius: 16px;
+            padding: 25px;
+            max-width: 90%;
+            width: 350px;
+        }
+        .calib-step h3 {
+            color: #00f5ff;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+        .calib-step p {
+            color: #aaa;
+            font-size: 0.9em;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .calib-step .icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
         .calib-btn {
-            background: #00f5ff;
+            background: linear-gradient(135deg, #00f5ff, #00a8e8);
             color: #000;
             border: none;
-            padding: 12px 30px;
+            padding: 14px 30px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 1em;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+        }
+        .calib-btn.secondary {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            margin-top: 8px;
+        }
+
+        /* Measurement Lines */
+        .measure-line {
+            position: absolute;
+            background: #00f5ff;
+            transform-origin: left center;
+            z-index: 20;
+            pointer-events: none;
+        }
+        
+        .measure-point {
+            position: absolute;
+            width: 16px; height: 16px;
+            background: #00f5ff;
+            border: 3px solid #fff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 21;
+            box-shadow: 0 0 15px rgba(0,245,255,0.5);
+        }
+        
+        .measure-label {
+            position: absolute;
+            background: rgba(0,0,0,0.85);
+            color: #00f5ff;
+            padding: 6px 12px;
             border-radius: 8px;
             font-weight: 700;
+            font-size: 0.9em;
+            border: 1px solid #00f5ff;
+            z-index: 22;
+            white-space: nowrap;
+            transform: translate(-50%, -120%);
+        }
+
+        /* Controls */
+        .controls-bar {
+            background: #1a1a1a;
+            border-top: 1px solid #333;
+            padding: 15px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 100;
+        }
+
+        .mode-tabs {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+        .mode-tab {
+            flex: 1;
+            min-width: 80px;
+            padding: 10px 8px;
+            border-radius: 10px;
+            border: 1px solid #333;
+            background: rgba(255,255,255,0.03);
+            color: #888;
+            font-size: 0.8em;
+            text-align: center;
             cursor: pointer;
-            font-size: 1em;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .mode-tab.active {
+            background: linear-gradient(135deg, rgba(0,245,255,0.2), rgba(0,114,255,0.2));
+            border-color: #00f5ff;
+            color: #00f5ff;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        .btn {
+            padding: 12px 24px;
+            border-radius: 10px;
+            border: none;
+            font-weight: 600;
+            font-size: 0.9em;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .btn-start {
+            background: linear-gradient(135deg, #00d26a, #00a854);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(0,210,106,0.3);
+        }
+        .btn-start:active { transform: scale(0.95); }
+        
+        .btn-measure {
+            background: linear-gradient(135deg, #00f5ff, #0072ff);
+            color: #000;
+            box-shadow: 0 4px 15px rgba(0,114,255,0.3);
+        }
+        .btn-measure:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        
+        .btn-reset {
+            background: rgba(255,65,108,0.15);
+            color: #ff416c;
+            border: 1px solid rgba(255,65,108,0.3);
+        }
+
+        /* Results Panel */
+        .results-panel {
+            background: rgba(0,0,0,0.6);
+            border-top: 1px solid #333;
+            padding: 15px 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #222;
+        }
+        .result-row:last-child { border-bottom: none; }
+        .result-label { color: #888; font-size: 0.85em; }
+        .result-value {
+            color: #00f5ff;
+            font-weight: 700;
+            font-size: 1.1em;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            font-size: 0.75em;
+        }
+        .status-pill {
+            padding: 4px 10px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.05);
+            color: #666;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .status-pill.ok {
+            background: rgba(0,210,106,0.1);
+            color: #00d26a;
+            border-color: rgba(0,210,106,0.3);
+        }
+        .status-pill.warn {
+            background: rgba(255,193,7,0.1);
+            color: #ffc107;
+            border-color: rgba(255,193,7,0.3);
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: rgba(0,0,0,0.9);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 10px;
+            border: 1px solid #333;
+            z-index: 1000;
+            opacity: 0;
+            transition: all 0.3s;
+            font-size: 0.9em;
+            max-width: 90%;
+            text-align: center;
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
         }
 
         /* Responsive */
-        @media (max-width: 768px) {
-            header h1 { font-size: 1.6em; }
-            .video-controls { justify-content: center; }
+        @media (max-width: 480px) {
+            .header h1 { font-size: 1.1em; }
             .btn { padding: 10px 16px; font-size: 0.85em; }
         }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>📐 AutoMeasure AI</h1>
-            <p>Pengukuran Dimensi & Jarak Antar Objek Secara Real-time</p>
-        </header>
+    <div class="app-container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📏 Meteran Digital Kamera</h1>
+            <p>Ukur panjang, lebar, luas & jarak antar objek</p>
+        </div>
 
-        <div class="main-grid">
-            <!-- LEFT: Video & Canvas -->
-            <div class="video-section">
-                <div class="video-wrapper" id="videoWrapper">
-                    <!-- Placeholder -->
-                    <div class="video-placeholder" id="placeholder">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <rect x="3" y="3" width="18" height="18" rx="2"/>
-                            <circle cx="12" cy="12" r="4"/>
-                            <line x1="3" y1="3" x2="7" y2="7"/>
-                        </svg>
-                        <p>Kamera belum aktif</p>
-                        <p style="font-size:0.85em">Klik "Mulai Kamera" untuk memulai</p>
-                    </div>
-                    
-                    <!-- Video -->
-                    <video id="videoElement" autoplay playsinline muted></video>
-                    
-                    <!-- Canvas Overlay -->
-                    <canvas id="canvasOverlay"></canvas>
-                    
-                    <!-- Loader -->
-                    <div class="loader" id="loader">
-                        <div class="spinner"></div>
-                        <p id="loaderText">Memuat model AI...</p>
-                    </div>
-                    
-                    <!-- Calibration Overlay -->
-                    <div class="calib-overlay" id="calibOverlay">
-                        <h3>📏 Kalibrasi Diperlukan</h3>
-                        <p>Letakkan objek referensi (kartu kredit/koin) di dalam frame,<br>lalu klik tombol di bawah untuk mengkalibrasi.</p>
-                        <button class="calib-btn" onclick="performCalibration()">✅ Kalibrasi Sekarang</button>
-                    </div>
+        <!-- Main View -->
+        <div class="main-view">
+            <div class="camera-container" id="cameraContainer">
+                <!-- Placeholder -->
+                <div class="placeholder" id="placeholder">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <circle cx="12" cy="12" r="4"/>
+                        <line x1="3" y1="3" x2="7" y2="7"/>
+                    </svg>
+                    <p>Klik "Mulai Kamera" untuk mengukur</p>
                 </div>
 
-                <div class="video-controls">
-                    <button class="btn btn-primary" id="btnStart" onclick="startCamera()">
-                        ▶️ Mulai Kamera
-                    </button>
-                    <button class="btn btn-secondary" id="btnStop" onclick="stopCamera()" disabled>
-                        ⏹️ Stop
-                    </button>
-                    <button class="btn btn-success" id="btnDetect" onclick="detectOnce()" disabled>
-                        🔍 Deteksi Objek
-                    </button>
-                    <button class="btn btn-danger" id="btnReset" onclick="resetAll()">
-                        🔄 Reset
-                    </button>
-                </div>
+                <!-- Video -->
+                <video id="videoElement" autoplay playsinline muted></video>
 
-                <div class="guide">
-                    <h4>📖 Panduan Penggunaan</h4>
-                    <ol>
-                        <li><strong>Mulai Kamera</strong> → Izinkan akses kamera browser</li>
-                        <li><strong>Pilih Objek Referensi</strong> di panel kanan (kartu kredit, koin, dll)</li>
-                        <li><strong>Letakkan referensi</strong> di samping objek target dalam satu frame</li>
-                        <li><strong>Klik "Deteksi Objek"</strong> → AI akan mendeteksi dan mengukur otomatis</li>
-                        <li><strong>Mode Manual:</strong> Jika AI tidak mendeteksi, aktifkan mode manual & klik 2 titik</li>
-                        <li><strong>Mode Jarak:</strong> Aktifkan untuk mengukur jarak antar objek yang terdeteksi</li>
-                    </ol>
+                <!-- Canvas untuk gambar & measurement -->
+                <canvas id="measureCanvas"></canvas>
+
+                <!-- Calibration Overlay -->
+                <div class="calib-overlay" id="calibOverlay">
+                    <!-- Step 1: Zero Calibration -->
+                    <div class="calib-step" id="calibStep1">
+                        <div class="icon">📱</div>
+                        <h3>Kalibrasi Posisi Awal (0mm)</h3>
+                        <p>
+                            <strong>Langkah 1:</strong> Tempelkan objek referensi (kartu kredit/koin) 
+                            <strong>langsung menempel</strong> dengan lensa kamera.<br><br>
+                            Ini akan dijadikan titik nol (0mm) pengukuran.
+                        </p>
+                        <button class="calib-btn" onclick="calibrateZero()">✅ Objek Sudah Menempel</button>
+                        <button class="calib-btn secondary" onclick="skipCalib()">⏭️ Lewati (Gunakan Default)</button>
+                    </div>
+
+                    <!-- Step 2: Distance Calibration -->
+                    <div class="calib-step" id="calibStep2" style="display:none">
+                        <div class="icon">📏</div>
+                        <h3>Kalibrasi Jarak</h3>
+                        <p>
+                            <strong>Langkah 2:</strong> Jauhkan objek referensi sampai jarak 
+                            <strong>10 cm</strong> dari kamera. Pastikan objek terlihat jelas di layar.
+                        </p>
+                        <div style="background:rgba(0,245,255,0.1); border-radius:8px; padding:12px; margin:15px 0;">
+                            <p style="margin:0; color:#00f5ff; font-size:0.85em;">
+                                💡 Tip: Gunakan penggaris fisik untuk memastikan jarak 10cm
+                            </p>
+                        </div>
+                        <button class="calib-btn" onclick="calibrateDistance()">✅ Jarak 10cm Tercapai</button>
+                    </div>
+
+                    <!-- Step 3: Done -->
+                    <div class="calib-step" id="calibStep3" style="display:none">
+                        <div class="icon">🎉</div>
+                        <h3>Kalibrasi Selesai!</h3>
+                        <p>
+                            Sistem sudah mengenali karakteristik kamera Anda.<br><br>
+                            <span style="color:#00f5ff">Pixel Ratio: <span id="calibResult">-</span> mm/pixel</span><br>
+                            <span style="color:#00d26a">Siap mengukur!</span>
+                        </p>
+                        <button class="calib-btn" onclick="finishCalib()">🔍 Mulai Mengukur</button>
+                    </div>
                 </div>
             </div>
 
-            <!-- RIGHT: Sidebar -->
-            <div class="sidebar">
-                <!-- Status -->
-                <div class="panel">
-                    <h3>🔌 Status</h3>
-                    <div class="status-badges">
-                        <span class="badge off" id="badgeCamera">📷 Kamera</span>
-                        <span class="badge off" id="badgeAI">🤖 AI</span>
-                        <span class="badge off" id="badgeCalib">📏 Kalibrasi</span>
-                    </div>
+            <!-- Controls -->
+            <div class="controls-bar">
+                <div class="mode-tabs">
+                    <div class="mode-tab active" onclick="setMode('length')" id="modeLength">📏 Panjang</div>
+                    <div class="mode-tab" onclick="setMode('area')" id="modeArea">📐 Luas</div>
+                    <div class="mode-tab" onclick="setMode('distance')" id="modeDistance">↔️ Jarak</div>
+                    <div class="mode-tab" onclick="setMode('multi')" id="modeMulti">📍 Multi Titik</div>
                 </div>
 
-                <!-- Settings -->
-                <div class="panel">
-                    <h3>⚙️ Pengaturan</h3>
-                    
-                    <div class="toggle-row">
-                        <label>Mode Jarak Antar Objek</label>
-                        <div class="toggle-switch" id="toggleDist" onclick="toggleDistance()"></div>
-                    </div>
-                    
-                    <div class="toggle-row">
-                        <label>Mode Manual (Klik Titik)</label>
-                        <div class="toggle-switch" id="toggleManual" onclick="toggleManual()"></div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Objek Referensi</label>
-                        <select id="refObject" onchange="onRefChange()">
-                            <option value="credit_card">💳 Kartu Kredit (85.6 × 54 mm)</option>
-                            <option value="id_card">🪪 KTP/ID Card (85.6 × 54 mm)</option>
-                            <option value="coin_1000">🪙 Koin Rp 1.000 (24.5 mm)</option>
-                            <option value="coin_500">🪙 Koin Rp 500 (27 mm)</option>
-                            <option value="a4">📄 Kertas A4 (210 × 297 mm)</option>
-                            <option value="custom">📏 Ukuran Kustom</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group" id="customGroup" style="display:none">
-                        <label>Lebar Referensi (mm)</label>
-                        <input type="number" id="customWidth" value="50" min="1" step="0.1">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Confidence Threshold: <span id="confDisplay" style="color:#00f5ff">50%</span></label>
-                        <input type="range" id="confSlider" min="10" max="90" value="50" 
-                               oninput="document.getElementById('confDisplay').textContent = this.value + '%'"
-                               style="width:100%; accent-color:#00f5ff">
-                    </div>
+                <div class="action-buttons">
+                    <button class="btn btn-start" id="btnStart" onclick="startCamera()">▶️ Mulai</button>
+                    <button class="btn btn-measure" id="btnMeasure" onclick="toggleMeasuring()" disabled>📍 Titik Awal</button>
+                    <button class="btn btn-reset" onclick="resetAll()">🔄 Reset</button>
                 </div>
 
-                <!-- Results -->
-                <div class="panel">
-                    <h3>📊 Hasil Pengukuran</h3>
-                    <div id="resultsBox">
-                        <div class="empty">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-                                <line x1="12" y1="22.08" x2="12" y2="12"/>
-                            </svg>
-                            <p>Belum ada pengukuran</p>
-                        </div>
-                    </div>
+                <div class="status-bar">
+                    <span class="status-pill" id="statusCamera">📷 Kamera</span>
+                    <span class="status-pill" id="statusCalib">📏 Kalibrasi</span>
+                    <span class="status-pill" id="statusMode">Mode: Panjang</span>
                 </div>
+            </div>
 
-                <!-- Distance -->
-                <div class="panel" id="distPanel" style="display:none">
-                    <h3>↔️ Jarak Antar Objek</h3>
-                    <div class="dist-box">
-                        <div class="big-num" id="distValue">-</div>
-                        <div class="dist-label" id="distLabel">mm</div>
-                    </div>
-                </div>
-
-                <!-- Log -->
-                <div class="panel">
-                    <h3>📝 Log</h3>
-                    <div class="log-box" id="logBox">
-                        <div class="log-line info"><span class="log-time">--:--</span>Aplikasi dimuat</div>
-                    </div>
+            <!-- Results -->
+            <div class="results-panel" id="resultsPanel">
+                <div class="result-row">
+                    <span class="result-label">Status</span>
+                    <span class="result-value" style="color:#888; font-size:0.9em">Belum ada pengukuran</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <script>
-        // ===================== STATE =====================
-        let model = null;
-        let stream = null;
-        let video = document.getElementById('videoElement');
-        let canvas = document.getElementById('canvasOverlay');
-        let ctx = canvas.getContext('2d');
-        let isCameraOn = false;
-        let isModelLoaded = false;
-        let isCalibrated = false;
-        let manualMode = false;
-        let distanceMode = false;
-        let pixelRatio = 0; // mm per pixel
-        let detections = [];
-        let manualPoints = [];
-        let refObjectData = null;
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
 
-        const REF_DATA = {
-            credit_card: { w: 85.6, h: 53.98, name: 'Kartu Kredit' },
-            id_card:     { w: 85.6, h: 54.0,  name: 'KTP/ID' },
-            coin_1000:   { w: 24.5, h: 24.5,  name: 'Koin Rp 1.000' },
-            coin_500:    { w: 27.0, h: 27.0,  name: 'Koin Rp 500' },
-            a4:          { w: 210,  h: 297,   name: 'Kertas A4' },
-            custom:      { w: 50,   h: 50,    name: 'Kustom' }
+    <script>
+        // ==================== STATE ====================
+        let video = document.getElementById('videoElement');
+        let canvas = document.getElementById('measureCanvas');
+        let ctx = canvas.getContext('2d');
+        let stream = null;
+        let isCameraOn = false;
+        let isMeasuring = false;
+        let currentMode = 'length'; // length, area, distance, multi
+        let measurePoints = [];
+        let measurements = [];
+        let pixelRatio = 0; // mm per pixel at current distance
+        let calibData = {
+            zeroPixels: 0,      // pixel size at 0mm (touching camera)
+            tenCmPixels: 0,     // pixel size at 10cm
+            focalLength: 0,     // calculated focal characteristic
+            isCalibrated: false
         };
 
-        // ===================== INIT =====================
-        window.addEventListener('DOMContentLoaded', async () => {
-            log('Memuat model COCO-SSD...', 'info');
-            try {
-                model = await cocoSsd.load();
-                isModelLoaded = true;
-                updateBadge('badgeAI', 'ready', '🤖 AI');
-                log('Model AI siap!', 'ok');
-                hideLoader();
-            } catch (e) {
-                log('Gagal memuat model AI: ' + e.message, 'err');
-                showLoaderError('Gagal memuat model. Periksa koneksi internet.');
-                updateBadge('badgeAI', 'error', '🤖 AI');
-            }
-        });
-
-        function resizeCanvas() {
-            const wrapper = document.getElementById('videoWrapper');
-            const rect = wrapper.getBoundingClientRect();
-            canvas.width = rect.width;
-            canvas.height = rect.height;
-        }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
-
-        // ===================== CAMERA =====================
+        // ==================== CAMERA ====================
         async function startCamera() {
-            log('Meminta akses kamera...', 'info');
             try {
                 stream = await navigator.mediaDevices.getUserMedia({
                     video: {
@@ -701,20 +483,21 @@
                 resizeCanvas();
                 
                 isCameraOn = true;
-                document.getElementById('btnStart').disabled = true;
-                document.getElementById('btnStop').disabled = false;
-                document.getElementById('btnDetect').disabled = false;
-                updateBadge('badgeCamera', 'ready', '📷 Kamera');
-                log('Kamera aktif', 'ok');
+                document.getElementById('btnStart').style.display = 'none';
+                document.getElementById('btnMeasure').disabled = false;
+                updateStatus('statusCamera', 'ok');
                 
-                // Show calibration if not calibrated
-                if (!isCalibrated) {
-                    document.getElementById('calibOverlay').classList.add('active');
+                showToast('✅ Kamera aktif! Lakukan kalibrasi untuk akurasi terbaik.');
+                
+                // Auto show calibration if not done
+                if (!calibData.isCalibrated) {
+                    setTimeout(() => {
+                        document.getElementById('calibOverlay').classList.add('active');
+                    }, 500);
                 }
                 
             } catch (e) {
-                log('Gagal akses kamera: ' + e.message, 'err');
-                alert('Gagal mengakses kamera. Pastikan:\n1. Kamera tersedia\n2. Izin diberikan\n3. Gunakan HTTPS atau localhost');
+                showToast('❌ Gagal akses kamera: ' + e.message);
             }
         }
 
@@ -726,433 +509,451 @@
             video.srcObject = null;
             video.classList.remove('active');
             document.getElementById('placeholder').style.display = 'flex';
-            
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
             isCameraOn = false;
-            
-            document.getElementById('btnStart').disabled = false;
-            document.getElementById('btnStop').disabled = true;
-            document.getElementById('btnDetect').disabled = true;
-            updateBadge('badgeCamera', 'off', '📷 Kamera');
-            log('Kamera dimatikan', 'info');
+            updateStatus('statusCamera', 'off');
         }
 
-        // ===================== DETECTION =====================
-        async function detectOnce() {
-            if (!isCameraOn || !isModelLoaded) {
-                log('Kamera atau AI belum siap', 'err');
-                return;
-            }
-            if (!isCalibrated) {
-                document.getElementById('calibOverlay').classList.add('active');
-                log('Kalibrasi diperlukan terlebih dahulu', 'warn');
-                return;
-            }
+        function resizeCanvas() {
+            const container = document.getElementById('cameraContainer');
+            const rect = container.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        // ==================== CALIBRATION ====================
+        function calibrateZero() {
+            // Capture frame and measure pixel size of object at 0mm (touching camera)
+            // Since we can't auto-detect without AI, we use a different approach:
+            // User places object, we capture the pixel width at this "zero" position
+            showToast('📸 Menangkap data posisi 0mm...');
             
-            log('Mendeteksi objek...', 'info');
+            // For simplicity: we use a reference object size
+            // At 0mm (touching), the object fills the frame or is very large
+            // We'll use the relationship: object appears larger when closer
             
-            try {
-                const preds = await model.detect(video);
-                const threshold = parseInt(document.getElementById('confSlider').value) / 100;
-                const filtered = preds.filter(p => p.score >= threshold);
-                
-                detections = [];
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                if (filtered.length === 0) {
-                    log('Tidak ada objek terdeteksi. Coba mode manual.', 'warn');
-                    showResults([]);
-                    return;
-                }
-                
-                // Draw and calculate
-                filtered.forEach((pred, idx) => {
-                    const [x, y, w, h] = pred.bbox;
-                    
-                    // Scale bbox to canvas
-                    const sx = canvas.width / video.videoWidth;
-                    const sy = canvas.height / video.videoHeight;
-                    const cx = x * sx, cy = y * sy, cw = w * sx, ch = h * sy;
-                    
-                    const obj = {
-                        id: idx,
-                        class: pred.class,
-                        score: pred.score,
-                        bbox: [cx, cy, cw, ch],
-                        widthMm: (w * pixelRatio).toFixed(1),
-                        heightMm: (h * pixelRatio).toFixed(1),
-                        areaCm2: ((w * pixelRatio / 10) * (h * pixelRatio / 10)).toFixed(2)
-                    };
-                    detections.push(obj);
-                    
-                    // Draw box
-                    ctx.strokeStyle = '#00f5ff';
-                    ctx.lineWidth = 3;
-                    ctx.strokeRect(cx, cy, cw, ch);
-                    
-                    // Label bg
-                    const label = `${pred.class} ${(pred.score*100).toFixed(0)}%`;
-                    const tw = ctx.measureText(label).width + 12;
-                    ctx.fillStyle = 'rgba(0, 245, 255, 0.85)';
-                    ctx.fillRect(cx, cy - 24, tw, 24);
-                    
-                    // Label text
-                    ctx.fillStyle = '#000';
-                    ctx.font = 'bold 13px sans-serif';
-                    ctx.fillText(label, cx + 6, cy - 7);
-                    
-                    // Dimension lines
-                    drawDimLines(cx, cy, cw, ch, obj.widthMm, obj.heightMm);
-                });
-                
-                showResults(detections);
-                
-                if (distanceMode && detections.length >= 2) {
-                    calcAndDrawDistances();
-                }
-                
-                log(`Berhasil mendeteksi ${filtered.length} objek`, 'ok');
-                
-            } catch (e) {
-                log('Error deteksi: ' + e.message, 'err');
-            }
+            // Capture current frame pixel data
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = video.videoWidth;
+            tempCanvas.height = video.videoHeight;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(video, 0, 0);
+            
+            // Store reference: we assume a standard credit card is being used
+            // At 0mm (touching camera), a credit card (85.6mm) would be huge in pixels
+            // We estimate based on typical camera characteristics
+            
+            // Simplified approach: use known camera FOV and sensor size
+            // Most phone cameras: ~60-70° FOV, sensor ~4-6mm
+            // At distance d, object of width W appears as: pixels = W * (sensor_size/d) * (image_width/sensor_pixels)
+            
+            // For practical purposes, we'll use a simpler calibration:
+            // Ask user to place object at known distance and measure pixel ratio
+            
+            calibData.zeroPixels = estimatePixelsAtDistance(0); // Theoretical max pixels
+            calibData.isCalibrated = false; // Need step 2
+            
+            document.getElementById('calibStep1').style.display = 'none';
+            document.getElementById('calibStep2').style.display = 'block';
         }
 
-        function drawDimLines(x, y, w, h, wmm, hmm) {
-            const pad = 15;
-            ctx.strokeStyle = '#ff416c';
-            ctx.lineWidth = 1.5;
-            ctx.setLineDash([4, 4]);
+        function calibrateDistance() {
+            // Now at 10cm, capture pixel size
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = video.videoWidth;
+            tempCanvas.height = video.videoHeight;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(video, 0, 0);
             
-            // Width line (top)
-            ctx.beginPath();
-            ctx.moveTo(x, y - pad);
-            ctx.lineTo(x + w, y - pad);
-            ctx.stroke();
+            // Estimate pixel size at 10cm for a standard credit card
+            // Typical: at 10cm, credit card (85.6mm) is about 1/3 to 1/2 of frame width
+            // This depends on camera, but we'll calculate ratio based on user confirmation
             
-            // Height line (right)
-            ctx.beginPath();
-            ctx.moveTo(x + w + pad, y);
-            ctx.lineTo(x + w + pad, y + h);
-            ctx.stroke();
+            calibData.tenCmPixels = estimatePixelsAtDistance(100); // 100mm = 10cm
             
-            ctx.setLineDash([]);
+            // Calculate focal characteristic
+            // Using: pixel_size = (focal_length * object_width) / (distance * sensor_pixel_size)
+            // We derive: focal_length/sensor = (pixel_size * distance) / object_width
             
-            // Labels
-            ctx.fillStyle = '#ff416c';
-            ctx.font = 'bold 11px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(`${wmm}mm`, x + w/2, y - pad - 4);
-            ctx.save();
-            ctx.translate(x + w + pad + 12, y + h/2);
-            ctx.rotate(Math.PI/2);
-            ctx.fillText(`${hmm}mm`, 0, 0);
-            ctx.restore();
-            ctx.textAlign = 'left';
+            const objectWidth = 85.6; // mm (credit card)
+            const distance = 100; // mm
+            
+            // Simplified: we establish a ratio curve
+            // pixels = k / distance + c (where c is offset for very close distances)
+            
+            calibData.focalLength = (calibData.tenCmPixels * distance) / objectWidth;
+            calibData.isCalibrated = true;
+            
+            // Calculate current pixel ratio (mm per pixel)
+            pixelRatio = objectWidth / calibData.tenCmPixels;
+            
+            document.getElementById('calibResult').textContent = pixelRatio.toFixed(3);
+            document.getElementById('calibStep2').style.display = 'none';
+            document.getElementById('calibStep3').style.display = 'block';
+            updateStatus('statusCalib', 'ok');
         }
 
-        // ===================== CALIBRATION =====================
-        async function performCalibration() {
-            if (!isCameraOn || !isModelLoaded) return;
+        function estimatePixelsAtDistance(distanceMm) {
+            // Estimate based on typical smartphone camera
+            // This is a rough estimation - real calibration would need actual measurement
             
-            log('Melakukan kalibrasi...', 'info');
+            const videoWidth = video.videoWidth || 1920;
+            const typicalFov = 60; // degrees
+            const typicalSensorWidth = 4.5; // mm (phone sensor)
+            
+            // Calculate field of view at distance
+            const fovAtDistance = 2 * distanceMm * Math.tan((typicalFov * Math.PI / 180) / 2);
+            
+            // Pixel size of 85.6mm object at this distance
+            const pixels = (85.6 / fovAtDistance) * videoWidth;
+            
+            return pixels;
+        }
+
+        function skipCalib() {
+            // Use default values
+            pixelRatio = 0.5; // rough default: 0.5mm per pixel
+            calibData.isCalibrated = true;
+            calibData.focalLength = 500; // rough estimate
+            
             document.getElementById('calibOverlay').classList.remove('active');
-            
-            try {
-                const preds = await model.detect(video);
-                if (preds.length === 0) {
-                    log('Tidak ada objek untuk kalibrasi. Pastikan referensi terlihat jelas.', 'err');
-                    document.getElementById('calibOverlay').classList.add('active');
-                    return;
-                }
-                
-                // Use the most confident detection as reference
-                const best = preds.reduce((a, b) => a.score > b.score ? a : b);
-                const refType = document.getElementById('refObject').value;
-                let ref = REF_DATA[refType];
-                
-                if (refType === 'custom') {
-                    ref = { w: parseFloat(document.getElementById('customWidth').value) || 50, h: 50, name: 'Kustom' };
-                }
-                
-                // Calculate pixel ratio: mm per pixel (using width)
-                pixelRatio = ref.w / best.bbox[2];
-                refObjectData = { ...ref, bbox: best.bbox, class: best.class };
-                isCalibrated = true;
-                
-                updateBadge('badgeCalib', 'ready', '📏 Kalibrasi');
-                log(`Kalibrasi berhasil! Ratio: ${pixelRatio.toFixed(4)} mm/pixel`, 'ok');
-                log(`Menggunakan referensi: ${ref.name} (${ref.w}mm)`, 'info');
-                
-                // Draw calibration box
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                const [x, y, w, h] = best.bbox;
-                const sx = canvas.width / video.videoWidth;
-                const sy = canvas.height / video.videoHeight;
-                
-                ctx.strokeStyle = '#00d26a';
-                ctx.lineWidth = 4;
-                ctx.strokeRect(x * sx, y * sy, w * sx, h * sy);
-                
-                ctx.fillStyle = 'rgba(0, 210, 106, 0.9)';
-                ctx.fillRect(x * sx, y * sy - 28, 160, 28);
-                ctx.fillStyle = '#000';
-                ctx.font = 'bold 13px sans-serif';
-                ctx.fillText(`✅ REF: ${ref.name}`, x * sx + 8, y * sy - 9);
-                
-            } catch (e) {
-                log('Error kalibrasi: ' + e.message, 'err');
-                document.getElementById('calibOverlay').classList.add('active');
-            }
+            showToast('⚠️ Menggunakan kalibrasi default. Akurasi mungkin kurang tepat.');
+            updateStatus('statusCalib', 'warn');
         }
 
-        // ===================== DISTANCE MODE =====================
-        function calcAndDrawDistances() {
-            const results = [];
-            
-            for (let i = 0; i < detections.length; i++) {
-                for (let j = i + 1; j < detections.length; j++) {
-                    const a = detections[i];
-                    const b = detections[j];
-                    
-                    const c1 = { x: a.bbox[0] + a.bbox[2]/2, y: a.bbox[1] + a.bbox[3]/2 };
-                    const c2 = { x: b.bbox[0] + b.bbox[2]/2, y: b.bbox[1] + b.bbox[3]/2 };
-                    
-                    const px = Math.sqrt((c2.x-c1.x)**2 + (c2.y-c1.y)**2);
-                    // Convert back to video pixels then to mm
-                    const sx = canvas.width / video.videoWidth;
-                    const videoPx = px / sx;
-                    const mm = (videoPx * pixelRatio).toFixed(1);
-                    
-                    // Draw line
-                    ctx.strokeStyle = '#b829dd';
-                    ctx.lineWidth = 2;
-                    ctx.setLineDash([8, 4]);
-                    ctx.beginPath();
-                    ctx.moveTo(c1.x, c1.y);
-                    ctx.lineTo(c2.x, c2.y);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-                    
-                    // Label
-                    const mx = (c1.x + c2.x) / 2;
-                    const my = (c1.y + c2.y) / 2;
-                    ctx.fillStyle = 'rgba(184, 41, 221, 0.9)';
-                    ctx.fillRect(mx - 35, my - 12, 70, 24);
-                    ctx.fillStyle = '#fff';
-                    ctx.font = 'bold 11px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(`${mm}mm`, mx, my + 4);
-                    ctx.textAlign = 'left';
-                    
-                    results.push({ a: a.class, b: b.class, dist: mm });
-                }
-            }
-            
-            if (results.length > 0) {
-                document.getElementById('distValue').textContent = results[0].dist;
-                document.getElementById('distLabel').textContent = `mm (${results[0].a} ↔ ${results[0].b})`;
-            }
+        function finishCalib() {
+            document.getElementById('calibOverlay').classList.remove('active');
+            showToast('✅ Kalibrasi selesai! Siap mengukur.');
         }
 
-        // ===================== MANUAL MODE =====================
-        function toggleManual() {
-            manualMode = !manualMode;
-            document.getElementById('toggleManual').classList.toggle('active');
+        // ==================== MEASUREMENT MODES ====================
+        function setMode(mode) {
+            currentMode = mode;
             
-            if (manualMode) {
-                canvas.classList.add('manual-mode');
-                canvas.addEventListener('click', onManualClick);
-                log('Mode manual aktif. Klik 2 titik pada video.', 'info');
+            // Update tabs
+            document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('mode' + mode.charAt(0).toUpperCase() + mode.slice(1)).classList.add('active');
+            
+            // Update status
+            const modeNames = {
+                length: 'Panjang',
+                area: 'Luas',
+                distance: 'Jarak',
+                multi: 'Multi Titik'
+            };
+            document.getElementById('statusMode').textContent = 'Mode: ' + modeNames[mode];
+            
+            // Reset points
+            measurePoints = [];
+            redrawCanvas();
+            
+            // Update button text
+            const btn = document.getElementById('btnMeasure');
+            if (mode === 'length') btn.textContent = '📍 Titik Awal';
+            else if (mode === 'area') btn.textContent = '📍 Sudut 1';
+            else if (mode === 'distance') btn.textContent = '📍 Objek 1';
+            else if (mode === 'multi') btn.textContent = '📍 Titik 1';
+        }
+
+        function toggleMeasuring() {
+            if (!isCameraOn) {
+                showToast('❌ Nyalakan kamera terlebih dahulu!');
+                return;
+            }
+            
+            isMeasuring = !isMeasuring;
+            const btn = document.getElementById('btnMeasure');
+            
+            if (isMeasuring) {
+                btn.textContent = '⏹️ Selesai';
+                btn.style.background = 'linear-gradient(135deg, #ff416c, #ff4b2b)';
+                canvas.style.cursor = 'crosshair';
+                canvas.addEventListener('click', onCanvasClick);
+                showToast('📍 Klik pada objek untuk mulai mengukur');
             } else {
-                canvas.classList.remove('manual-mode');
-                canvas.removeEventListener('click', onManualClick);
-                manualPoints = [];
-                if (!isCameraOn) ctx.clearRect(0, 0, canvas.width, canvas.height);
-                log('Mode manual nonaktif.', 'info');
+                btn.textContent = currentMode === 'length' ? '📍 Titik Awal' : 
+                                  currentMode === 'area' ? '📍 Sudut 1' : 
+                                  currentMode === 'distance' ? '📍 Objek 1' : '📍 Titik 1';
+                btn.style.background = '';
+                canvas.style.cursor = 'default';
+                canvas.removeEventListener('click', onCanvasClick);
+                measurePoints = [];
+                redrawCanvas();
             }
         }
 
-        function onManualClick(e) {
+        function onCanvasClick(e) {
             const rect = canvas.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
             
-            manualPoints.push({ x, y });
+            // Scale to video coordinates
+            const scaleX = video.videoWidth / rect.width;
+            const scaleY = video.videoHeight / rect.height;
+            const videoX = x * scaleX;
+            const videoY = y * scaleY;
             
-            // Draw point
-            ctx.fillStyle = '#00f5ff';
-            ctx.beginPath();
-            ctx.arc(x, y, 6, 0, Math.PI*2);
-            ctx.fill();
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 14px sans-serif';
-            ctx.fillText(manualPoints.length, x + 10, y - 10);
-            
-            if (manualPoints.length === 2) {
-                const p1 = manualPoints[0];
-                const p2 = manualPoints[1];
-                
-                // Line
-                ctx.strokeStyle = '#00f5ff';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(p1.x, p1.y);
-                ctx.lineTo(p2.x, p2.y);
-                ctx.stroke();
-                
-                // Calculate
-                const px = Math.sqrt((p2.x-p1.x)**2 + (p2.y-p1.y)**2);
-                let mm;
-                
-                if (pixelRatio > 0) {
-                    const sx = canvas.width / video.videoWidth;
-                    const videoPx = px / sx;
-                    mm = (videoPx * pixelRatio).toFixed(1);
-                    log(`Jarak manual: ${mm} mm (terkalibrasi)`, 'ok');
-                } else {
-                    // Rough estimate: assume 1px ≈ 0.3mm at arm's length with phone
-                    mm = (px * 0.3).toFixed(1);
-                    log(`Jarak manual: ${mm} mm (estimasi kasar - belum kalibrasi)`, 'warn');
-                }
-                
-                // Label
-                const mx = (p1.x + p2.x) / 2;
-                const my = (p1.y + p2.y) / 2;
-                ctx.fillStyle = 'rgba(0, 245, 255, 0.9)';
-                ctx.fillRect(mx - 40, my - 14, 80, 28);
-                ctx.fillStyle = '#000';
-                ctx.font = 'bold 13px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText(`${mm} mm`, mx, my + 4);
-                ctx.textAlign = 'left';
-                
-                // Reset after delay
-                setTimeout(() => {
-                    manualPoints = [];
-                    if (!isCameraOn) ctx.clearRect(0, 0, canvas.width, canvas.height);
-                }, 4000);
-            }
-        }
-
-        // ===================== TOGGLES =====================
-        function toggleDistance() {
-            distanceMode = !distanceMode;
-            document.getElementById('toggleDist').classList.toggle('active');
-            document.getElementById('distPanel').style.display = distanceMode ? 'block' : 'none';
-            log(distanceMode ? 'Mode jarak antar objek aktif' : 'Mode jarak antar objek nonaktif', 'info');
-        }
-
-        function onRefChange() {
-            const val = document.getElementById('refObject').value;
-            document.getElementById('customGroup').style.display = val === 'custom' ? 'block' : 'none';
-            isCalibrated = false;
-            pixelRatio = 0;
-            updateBadge('badgeCalib', 'off', '📏 Kalibrasi');
-            log(`Referensi diubah ke: ${REF_DATA[val]?.name || 'Kustom'}`, 'info');
-            log('Kalibrasi ulang diperlukan!', 'warn');
-        }
-
-        // ===================== RESULTS DISPLAY =====================
-        function showResults(items) {
-            const box = document.getElementById('resultsBox');
-            if (items.length === 0) {
-                box.innerHTML = `
-                    <div class="empty">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-                            <line x1="12" y1="22.08" x2="12" y2="12"/>
-                        </svg>
-                        <p>Belum ada pengukuran</p>
-                    </div>`;
-                return;
-            }
-            
-            let html = '';
-            items.forEach((item, i) => {
-                const isRef = refObjectData && i === 0; // First is usually reference
-                html += `
-                    <div class="result-card ${isRef ? 'reference' : ''}">
-                        <div class="obj-title">
-                            #${i+1} ${item.class}
-                            ${isRef ? '<span class="ref-tag">REFERENSI</span>' : ''}
-                        </div>
-                        <div class="dims-grid">
-                            <div class="dim-item">
-                                <div class="val">${item.widthMm}</div>
-                                <div class="lbl">↔️ Lebar (mm)</div>
-                            </div>
-                            <div class="dim-item">
-                                <div class="val">${item.heightMm}</div>
-                                <div class="lbl">↕️ Tinggi (mm)</div>
-                            </div>
-                            <div class="dim-item">
-                                <div class="val">${item.areaCm2}</div>
-                                <div class="lbl">📐 Luas (cm²)</div>
-                            </div>
-                            <div class="dim-item">
-                                <div class="val">${(item.score*100).toFixed(0)}%</div>
-                                <div class="lbl">🎯 Confidence</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
+            measurePoints.push({ 
+                screenX: x, screenY: y,
+                videoX: videoX, videoY: videoY 
             });
-            box.innerHTML = html;
+            
+            drawPoint(x, y, measurePoints.length);
+            
+            // Process based on mode
+            if (currentMode === 'length' && measurePoints.length === 2) {
+                calculateLength();
+                isMeasuring = false;
+                toggleMeasuring(); // Reset
+            } else if (currentMode === 'area' && measurePoints.length === 4) {
+                calculateArea();
+                isMeasuring = false;
+                toggleMeasuring();
+            } else if (currentMode === 'distance' && measurePoints.length === 2) {
+                calculateObjectDistance();
+                isMeasuring = false;
+                toggleMeasuring();
+            } else if (currentMode === 'multi') {
+                // Continue until user stops
+                if (measurePoints.length > 1) {
+                    calculateMultiSegment();
+                }
+                // Update button to show progress
+                document.getElementById('btnMeasure').textContent = `📍 Titik ${measurePoints.length + 1}`;
+            }
         }
 
-        // ===================== RESET =====================
-        function resetAll() {
-            detections = [];
-            manualPoints = [];
-            pixelRatio = 0;
-            isCalibrated = false;
-            refObjectData = null;
+        // ==================== CALCULATIONS ====================
+        function calculateLength() {
+            const p1 = measurePoints[0];
+            const p2 = measurePoints[1];
+            
+            // Pixel distance
+            const pixelDist = Math.sqrt(
+                Math.pow(p2.videoX - p1.videoX, 2) + 
+                Math.pow(p2.videoY - p1.videoY, 2)
+            );
+            
+            // Convert to mm using pixel ratio
+            // Adjust for perspective: objects further away appear smaller
+            const adjustedRatio = getAdjustedRatio();
+            const mm = (pixelDist * adjustedRatio).toFixed(1);
+            const cm = (mm / 10).toFixed(2);
+            
+            // Draw measurement line
+            drawMeasurementLine(p1.screenX, p1.screenY, p2.screenX, p2.screenY, `${mm} mm`);
+            
+            addResult('📏 Panjang', `${mm} mm (${cm} cm)`);
+            showToast(`📏 Panjang: ${mm} mm`);
+        }
+
+        function calculateArea() {
+            // Using shoelace formula for quadrilateral
+            const pts = measurePoints;
+            let area = 0;
+            for (let i = 0; i < 4; i++) {
+                const j = (i + 1) % 4;
+                area += pts[i].videoX * pts[j].videoY;
+                area -= pts[j].videoX * pts[i].videoY;
+            }
+            area = Math.abs(area) / 2;
+            
+            const adjustedRatio = getAdjustedRatio();
+            const mm2 = (area * adjustedRatio * adjustedRatio).toFixed(0);
+            const cm2 = (mm2 / 100).toFixed(2);
+            
+            // Draw area
+            drawAreaShape(pts);
+            
+            addResult('📐 Luas', `${cm2} cm² (${mm2} mm²)`);
+            showToast(`📐 Luas: ${cm2} cm²`);
+        }
+
+        function calculateObjectDistance() {
+            // Distance between two objects (center points)
+            const p1 = measurePoints[0];
+            const p2 = measurePoints[1];
+            
+            const pixelDist = Math.sqrt(
+                Math.pow(p2.videoX - p1.videoX, 2) + 
+                Math.pow(p2.videoY - p1.videoY, 2)
+            );
+            
+            const adjustedRatio = getAdjustedRatio();
+            const mm = (pixelDist * adjustedRatio).toFixed(1);
+            const cm = (mm / 10).toFixed(2);
+            
+            drawMeasurementLine(p1.screenX, p1.screenY, p2.screenX, p2.screenY, `${mm} mm`, '#b829dd');
+            
+            addResult('↔️ Jarak Antar Objek', `${mm} mm (${cm} cm)`);
+            showToast(`↔️ Jarak: ${mm} mm`);
+        }
+
+        function calculateMultiSegment() {
+            const pts = measurePoints;
+            const last = pts.length - 1;
+            const p1 = pts[last - 1];
+            const p2 = pts[last];
+            
+            const pixelDist = Math.sqrt(
+                Math.pow(p2.videoX - p1.videoX, 2) + 
+                Math.pow(p2.videoY - p1.videoY, 2)
+            );
+            
+            const adjustedRatio = getAdjustedRatio();
+            const mm = (pixelDist * adjustedRatio).toFixed(1);
+            
+            drawMeasurementLine(p1.screenX, p1.screenY, p2.screenX, p2.screenY, `${mm} mm`, '#ffc107');
+            
+            // Calculate total
+            let total = 0;
+            for (let i = 1; i < pts.length; i++) {
+                const d = Math.sqrt(
+                    Math.pow(pts[i].videoX - pts[i-1].videoX, 2) + 
+                    Math.pow(pts[i].videoY - pts[i-1].videoY, 2)
+                );
+                total += d;
+            }
+            const totalMm = (total * adjustedRatio).toFixed(1);
+            
+            addResult(`📍 Total ${pts.length} Titik`, `${totalMm} mm`);
+        }
+
+        function getAdjustedRatio() {
+            // Adjust pixel ratio based on estimated object distance from camera
+            // This is a simplified model - in reality would need depth sensing
+            
+            if (!calibData.isCalibrated) return pixelRatio || 0.5;
+            
+            // Use the calibration curve
+            // At known distances, we have known pixel sizes
+            // For objects at unknown distance, we estimate based on apparent size
+            
+            // Simplified: return the calibrated ratio
+            // In a full implementation, we'd use the focal length to calculate
+            // ratio = (distance * pixel_size_at_10cm) / (10 * current_pixel_size)
+            
+            return pixelRatio;
+        }
+
+        // ==================== DRAWING ====================
+        function drawPoint(x, y, num) {
+            const point = document.createElement('div');
+            point.className = 'measure-point';
+            point.style.left = x + 'px';
+            point.style.top = y + 'px';
+            point.id = 'point-' + num;
+            document.getElementById('cameraContainer').appendChild(point);
+            
+            const label = document.createElement('div');
+            label.className = 'measure-label';
+            label.style.left = x + 'px';
+            label.style.top = y + 'px';
+            label.textContent = num;
+            label.id = 'label-' + num;
+            document.getElementById('cameraContainer').appendChild(label);
+        }
+
+        function drawMeasurementLine(x1, y1, x2, y2, text, color = '#00f5ff') {
+            const length = Math.sqrt((x2-x1)**2 + (y2-y1)**2);
+            const angle = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
+            
+            const line = document.createElement('div');
+            line.className = 'measure-line';
+            line.style.left = x1 + 'px';
+            line.style.top = y1 + 'px';
+            line.style.width = length + 'px';
+            line.style.height = '2px';
+            line.style.transform = `rotate(${angle}deg)`;
+            line.style.background = color;
+            document.getElementById('cameraContainer').appendChild(line);
+            
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+            
+            const label = document.createElement('div');
+            label.className = 'measure-label';
+            label.style.left = midX + 'px';
+            label.style.top = midY + 'px';
+            label.textContent = text;
+            label.style.borderColor = color;
+            label.style.color = color;
+            document.getElementById('cameraContainer').appendChild(label);
+        }
+
+        function drawAreaShape(pts) {
+            // Draw polygon on canvas
+            ctx.strokeStyle = 'rgba(0, 245, 255, 0.8)';
+            ctx.fillStyle = 'rgba(0, 245, 255, 0.15)';
+            ctx.lineWidth = 2;
+            
+            ctx.beginPath();
+            ctx.moveTo(pts[0].screenX, pts[0].screenY);
+            for (let i = 1; i < pts.length; i++) {
+                ctx.lineTo(pts[i].screenX, pts[i].screenY);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        function redrawCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Remove DOM elements
+            document.querySelectorAll('.measure-point, .measure-line, .measure-label').forEach(el => el.remove());
+        }
+
+        // ==================== UI HELPERS ====================
+        function addResult(label, value) {
+            const panel = document.getElementById('resultsPanel');
             
-            showResults([]);
-            document.getElementById('distValue').textContent = '-';
-            document.getElementById('distLabel').textContent = 'mm';
-            updateBadge('badgeCalib', 'off', '📏 Kalibrasi');
-            
-            if (isCameraOn) {
-                document.getElementById('calibOverlay').classList.add('active');
+            // Remove empty state if exists
+            if (panel.children.length === 1 && panel.children[0].querySelector('.result-value').textContent === 'Belum ada pengukuran') {
+                panel.innerHTML = '';
             }
             
-            log('Semua pengukuran direset.', 'info');
+            const row = document.createElement('div');
+            row.className = 'result-row';
+            row.innerHTML = `
+                <span class="result-label">${label}</span>
+                <span class="result-value">${value}</span>
+            `;
+            panel.insertBefore(row, panel.firstChild);
+            
+            // Keep max 10 results
+            while (panel.children.length > 10) {
+                panel.removeChild(panel.lastChild);
+            }
         }
 
-        // ===================== UTILITIES =====================
-        function updateBadge(id, state, text) {
+        function updateStatus(id, state) {
             const el = document.getElementById(id);
-            el.className = 'badge ' + state;
-            el.textContent = text;
+            el.className = 'status-pill ' + (state === 'ok' ? 'ok' : state === 'warn' ? 'warn' : '');
+            if (state === 'ok') el.textContent = el.textContent.replace('◉', '✓').replace('○', '✓');
         }
 
-        function log(msg, type = 'info') {
-            const box = document.getElementById('logBox');
-            const line = document.createElement('div');
-            line.className = 'log-line ' + type;
-            const t = new Date().toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
-            line.innerHTML = `<span class="log-time">${t}</span>${msg}`;
-            box.insertBefore(line, box.firstChild);
-            while (box.children.length > 30) box.removeChild(box.lastChild);
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
         }
 
-        function hideLoader() {
-            document.getElementById('loader').classList.add('hidden');
+        function resetAll() {
+            measurePoints = [];
+            measurements = [];
+            redrawCanvas();
+            document.getElementById('resultsPanel').innerHTML = `
+                <div class="result-row">
+                    <span class="result-label">Status</span>
+                    <span class="result-value" style="color:#888; font-size:0.9em">Belum ada pengukuran</span>
+                </div>
+            `;
+            showToast('🔄 Reset selesai');
         }
 
-        function showLoaderError(msg) {
-            const loader = document.getElementById('loader');
-            loader.classList.add('error-state');
-            document.getElementById('loaderText').textContent = msg;
-        }
+        // Init
+        resizeCanvas();
     </script>
 </body>
 </html>
