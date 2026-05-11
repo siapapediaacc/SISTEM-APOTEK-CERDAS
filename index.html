@@ -14,20 +14,68 @@ body {
   font-family:-apple-system;
 }
 
-video, canvas {
-  position:absolute;
+/* VIDEO */
+video {
+  position:fixed;
+  top:0;
+  left:0;
   width:100%;
   height:100%;
   object-fit:cover;
+  z-index:1;
 }
 
-.label {
-  position:absolute;
-  color:white;
-  font-size:14px;
+/* CANVAS */
+canvas {
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  z-index:2;
+}
+
+/* UI PANEL */
+.ui {
+  position:fixed;
+  bottom:20px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:999; /* 🔥 penting */
   background:rgba(0,0,0,0.5);
-  padding:2px 6px;
-  border-radius:5px;
+  padding:10px;
+  border-radius:20px;
+  backdrop-filter: blur(10px);
+}
+
+/* BUTTON */
+button {
+  padding:10px 15px;
+  margin:5px;
+  border:none;
+  border-radius:15px;
+  font-size:14px;
+}
+
+.primary {
+  background:white;
+  color:black;
+}
+
+.secondary {
+  background:rgba(255,255,255,0.2);
+  color:white;
+}
+
+/* TEXT */
+.measure {
+  position:fixed;
+  top:40px;
+  width:100%;
+  text-align:center;
+  color:white;
+  font-size:18px;
+  z-index:999;
 }
 </style>
 </head>
@@ -37,6 +85,14 @@ video, canvas {
 <video id="video" autoplay playsinline></video>
 <canvas id="canvas"></canvas>
 
+<div class="measure" id="info">Deteksi objek aktif...</div>
+
+<div class="ui">
+  <button class="primary" onclick="alert('Start')">Start</button>
+  <button class="primary" onclick="alert('Stop')">Stop</button>
+  <button class="secondary" onclick="alert('Reset')">Reset</button>
+</div>
+
 <script>
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
@@ -44,55 +100,47 @@ const ctx = canvas.getContext("2d");
 
 let model;
 
-// start camera
+// kamera
 navigator.mediaDevices.getUserMedia({
   video: { facingMode: "environment" }
 }).then(stream => {
   video.srcObject = stream;
 });
 
-// load AI model
-async function loadModel() {
-  model = await cocoSsd.load();
-  detectFrame();
-}
-
+// ukuran canvas
 video.onloadedmetadata = () => {
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
 };
 
-// detect objects
-async function detectFrame() {
+// load AI
+async function loadModel() {
+  model = await cocoSsd.load();
+  detect();
+}
+
+// deteksi objek
+async function detect() {
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
   const predictions = await model.detect(video);
 
-  predictions.forEach(pred => {
-    if (pred.score > 0.6) {
+  predictions.forEach(p => {
+    if (p.score > 0.6) {
+      let [x, y, w, h] = p.bbox;
 
-      let [x, y, width, height] = pred.bbox;
-
-      // box
       ctx.strokeStyle = "lime";
       ctx.lineWidth = 3;
-      ctx.strokeRect(x, y, width, height);
+      ctx.strokeRect(x, y, w, h);
 
-      // label
       ctx.fillStyle = "lime";
-      ctx.font = "16px Arial";
-      ctx.fillText(
-        pred.class + " " + Math.round(pred.score * 100) + "%",
-        x,
-        y > 10 ? y - 5 : 10
-      );
+      ctx.fillText(p.class, x, y - 5);
     }
   });
 
-  requestAnimationFrame(detectFrame);
+  requestAnimationFrame(detect);
 }
 
-// run
 loadModel();
 </script>
 
