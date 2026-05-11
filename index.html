@@ -2,66 +2,32 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AR Measure Pro</title>
+<title>AI Measure Pro</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+
 <style>
 body {
-  margin: 0;
-  background: black;
-  font-family: -apple-system, BlinkMacSystemFont;
-  color: white;
+  margin:0;
+  background:black;
+  font-family:-apple-system;
 }
 
 video, canvas {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  position:absolute;
+  width:100%;
+  height:100%;
+  object-fit:cover;
 }
 
-.crosshair {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 25px;
-  height: 25px;
-  transform: translate(-50%, -50%);
-  border: 2px solid white;
-  border-radius: 50%;
-}
-
-.snap-point {
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  background: cyan;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.ui {
-  position: absolute;
-  bottom: 30px;
-  width: 100%;
-  text-align: center;
-}
-
-button {
-  padding: 12px 18px;
-  border-radius: 20px;
-  border: none;
-  margin: 5px;
-  font-size: 14px;
-}
-
-.primary { background: white; color: black; }
-.secondary { background: rgba(255,255,255,0.2); color: white; }
-
-.measure {
-  position: absolute;
-  top: 40px;
-  width: 100%;
-  text-align: center;
-  font-size: 18px;
+.label {
+  position:absolute;
+  color:white;
+  font-size:14px;
+  background:rgba(0,0,0,0.5);
+  padding:2px 6px;
+  border-radius:5px;
 }
 </style>
 </head>
@@ -71,125 +37,63 @@ button {
 <video id="video" autoplay playsinline></video>
 <canvas id="canvas"></canvas>
 
-<div class="crosshair"></div>
-<div id="snap" class="snap-point"></div>
-
-<div class="measure" id="distance">0 cm</div>
-
-<div class="ui">
-  <button class="primary" onclick="setStart()">Set Start</button>
-  <button class="primary" onclick="setEnd()">Set End</button>
-  <button class="secondary" onclick="reset()">Reset</button>
-</div>
-
 <script>
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
-const snapEl = document.getElementById("snap");
 
-let start = null;
-let end = null;
-let scale = 0.1; // cm per pixel (dummy awal)
+let model;
 
+// start camera
 navigator.mediaDevices.getUserMedia({
   video: { facingMode: "environment" }
 }).then(stream => {
   video.srcObject = stream;
 });
 
+// load AI model
+async function loadModel() {
+  model = await cocoSsd.load();
+  detectFrame();
+}
+
 video.onloadedmetadata = () => {
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
-  requestAnimationFrame(processFrame);
 };
 
-function processFrame() {
+// detect objects
+async function detectFrame() {
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-  let img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  let data = img.data;
+  const predictions = await model.detect(video);
 
-  let cx = canvas.width / 2;
-  let cy = canvas.height / 2;
+  predictions.forEach(pred => {
+    if (pred.score > 0.6) {
 
-  let bestX = cx;
-  let bestY = cy;
-  let bestScore = 0;
+      let [x, y, width, height] = pred.bbox;
 
-  // scan area kecil di sekitar crosshair
-  for (let y = -30; y < 30; y++) {
-    for (let x = -30; x < 30; x++) {
-      let px = Math.floor(cx + x);
-      let py = Math.floor(cy + y);
+      // box
+      ctx.strokeStyle = "lime";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x, y, width, height);
 
-      let i = (py * canvas.width + px) * 4;
-
-      let r = data[i];
-      let g = data[i+1];
-      let b = data[i+2];
-
-      let brightness = (r+g+b)/3;
-
-      let contrast = Math.abs(brightness - 128);
-
-      if (contrast > bestScore) {
-        bestScore = contrast;
-        bestX = px;
-        bestY = py;
-      }
+      // label
+      ctx.fillStyle = "lime";
+      ctx.font = "16px Arial";
+      ctx.fillText(
+        pred.class + " " + Math.round(pred.score * 100) + "%",
+        x,
+        y > 10 ? y - 5 : 10
+      );
     }
-  }
+  });
 
-  snapEl.style.left = bestX + "px";
-  snapEl.style.top = bestY + "px";
-
-  if (start && end) drawLine();
-
-  requestAnimationFrame(processFrame);
+  requestAnimationFrame(detectFrame);
 }
 
-function setStart() {
-  start = getSnapPosition();
-}
-
-function setEnd() {
-  end = getSnapPosition();
-  calculateDistance();
-}
-
-function getSnapPosition() {
-  return {
-    x: snapEl.offsetLeft,
-    y: snapEl.offsetTop
-  };
-}
-
-function drawLine() {
-  ctx.beginPath();
-  ctx.moveTo(start.x, start.y);
-  ctx.lineTo(end.x, end.y);
-  ctx.strokeStyle = "lime";
-  ctx.lineWidth = 3;
-  ctx.stroke();
-}
-
-function calculateDistance() {
-  let dx = end.x - start.x;
-  let dy = end.y - start.y;
-
-  let pixelDist = Math.sqrt(dx*dx + dy*dy);
-  let cm = pixelDist * scale;
-
-  document.getElementById("distance").innerText =
-    cm.toFixed(2) + " cm";
-}
-
-function reset() {
-  start = null;
-  end = null;
-  document.getElementById("distance").innerText = "0 cm";
-}
+// run
+loadModel();
 </script>
 
 </body>
