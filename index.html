@@ -2,10 +2,10 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pro Measure (No AI)</title>
+<title>Measure Pro Stable</title>
 
 <style>
-body { margin:0; background:black; font-family:sans-serif; }
+body { margin:0; background:black; }
 
 video, canvas {
   position:fixed;
@@ -23,7 +23,6 @@ canvas { z-index:2; }
   text-align:center;
   color:white;
   z-index:999;
-  font-size:14px;
 }
 
 .ui {
@@ -45,14 +44,14 @@ button {
 
 <body>
 
-<div class="info" id="info">Arahkan ke kertas / objek persegi</div>
+<div class="info" id="info">Arahkan ke objek persegi</div>
 
 <video id="video" autoplay playsinline></video>
 <canvas id="canvas"></canvas>
 
 <div class="ui">
-  <button onclick="calibrateKTP()">Kalibrasi KTP</button>
-  <button onclick="calibrateA4()">Kalibrasi A4</button>
+  <button onclick="captureCalibration()">Kalibrasi</button>
+  <button onclick="unlock()">Unlock</button>
 </div>
 
 <script>
@@ -61,7 +60,10 @@ let canvas = document.getElementById("canvas");
 let ctx = canvas.getContext("2d");
 
 let scale = null;
+let locked = false;
+let stableCorners = null;
 
+// kamera
 navigator.mediaDevices.getUserMedia({
   video: { facingMode: "environment" }
 }).then(stream => {
@@ -75,16 +77,42 @@ video.onloadedmetadata = () => {
 };
 
 function loop() {
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  ctx.drawImage(video, 0, 0);
 
+  let corners = detectCorners();
+
+  if (!locked && corners) {
+    stableCorners = smooth(corners, stableCorners);
+  }
+
+  if (stableCorners) {
+    draw(stableCorners);
+
+    if (scale) measure(stableCorners);
+  }
+
+  requestAnimationFrame(loop);
+}
+
+// smoothing biar stabil
+function smooth(newC, oldC) {
+  if (!oldC) return newC;
+
+  return newC.map((p,i)=>({
+    x: oldC[i].x * 0.8 + p.x * 0.2,
+    y: oldC[i].y * 0.8 + p.y * 0.2
+  }));
+}
+
+// deteksi sudut sederhana
+function detectCorners() {
   let img = ctx.getImageData(0,0,canvas.width,canvas.height);
   let data = img.data;
 
   let points = [];
 
-  // cari titik kontras tinggi (edge sederhana)
-  for (let y=20; y<canvas.height-20; y+=5) {
-    for (let x=20; x<canvas.width-20; x+=5) {
+  for (let y=20; y<canvas.height-20; y+=8) {
+    for (let x=20; x<canvas.width-20; x+=8) {
 
       let i = (y*canvas.width + x)*4;
       let b = (data[i]+data[i+1]+data[i+2])/3;
@@ -92,97 +120,81 @@ function loop() {
       let i2 = ((y+5)*canvas.width + (x+5))*4;
       let b2 = (data[i2]+data[i2+1]+data[i2+2])/3;
 
-      let diff = Math.abs(b - b2);
-
-      if (diff > 40) {
+      if (Math.abs(b - b2) > 50) {
         points.push({x,y});
       }
     }
   }
 
-  if (points.length > 50) {
-    let corners = getCorners(points);
+  if (points.length < 100) return null;
 
-    drawPolygon(corners);
-
-    if (scale) {
-      measure(corners);
-    }
-  }
-
-  requestAnimationFrame(loop);
+  return getCorners(points);
 }
 
-// ambil 4 sudut ekstrem
 function getCorners(points) {
-  let tl, tr, bl, br;
+  let tl,tr,bl,br;
+  let minSum=99999,maxSum=0,minDiff=99999,maxDiff=-99999;
 
-  let minSum = Infinity, maxSum = -Infinity;
-  let minDiff = Infinity, maxDiff = -Infinity;
+  points.forEach(p=>{
+    let sum=p.x+p.y;
+    let diff=p.x-p.y;
 
-  points.forEach(p => {
-    let sum = p.x + p.y;
-    let diff = p.x - p.y;
-
-    if (sum < minSum) { minSum = sum; tl = p; }
-    if (sum > maxSum) { maxSum = sum; br = p; }
-    if (diff < minDiff) { minDiff = diff; bl = p; }
-    if (diff > maxDiff) { maxDiff = diff; tr = p; }
+    if(sum<minSum){minSum=sum;tl=p;}
+    if(sum>maxSum){maxSum=sum;br=p;}
+    if(diff<minDiff){minDiff=diff;bl=p;}
+    if(diff>maxDiff){maxDiff=diff;tr=p;}
   });
 
-  return [tl, tr, br, bl];
+  return [tl,tr,br,bl];
 }
 
-function drawPolygon(c) {
+function draw(c) {
   ctx.beginPath();
-  ctx.moveTo(c[0].x, c[0].y);
-  ctx.lineTo(c[1].x, c[1].y);
-  ctx.lineTo(c[2].x, c[2].y);
-  ctx.lineTo(c[3].x, c[3].y);
+  ctx.moveTo(c[0].x,c[0].y);
+  ctx.lineTo(c[1].x,c[1].y);
+  ctx.lineTo(c[2].x,c[2].y);
+  ctx.lineTo(c[3].x,c[3].y);
   ctx.closePath();
 
-  ctx.strokeStyle = "lime";
-  ctx.lineWidth = 3;
+  ctx.strokeStyle="lime";
+  ctx.lineWidth=3;
   ctx.stroke();
-
-  // titik
-  c.forEach(p => {
-    ctx.fillStyle = "red";
-    ctx.fillRect(p.x-3, p.y-3, 6, 6);
-  });
 }
 
 function distance(a,b){
-  return Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2);
+  return Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2);
 }
 
-function measure(c) {
-  let top = distance(c[0], c[1]);
-  let bottom = distance(c[3], c[2]);
-  let left = distance(c[0], c[3]);
-  let right = distance(c[1], c[2]);
+function measure(c){
+  let w = (distance(c[0],c[1])+distance(c[2],c[3]))/2;
+  let h = (distance(c[0],c[3])+distance(c[1],c[2]))/2;
 
-  let widthPx = (top + bottom) / 2;
-  let heightPx = (left + right) / 2;
+  let wcm = w * scale;
+  let hcm = h * scale;
 
-  let widthCm = widthPx * scale;
-  let heightCm = heightPx * scale;
-
-  let area = widthCm * heightCm;
+  let area = wcm * hcm;
 
   document.getElementById("info").innerText =
-    `P: ${widthCm.toFixed(2)} cm | L: ${heightCm.toFixed(2)} cm | Luas: ${area.toFixed(2)} cm²`;
+    `P:${wcm.toFixed(2)} cm L:${hcm.toFixed(2)} cm Luas:${area.toFixed(2)} cm²`;
 }
 
-// kalibrasi
-function calibrateKTP() {
-  scale = 8.56 / 200; // estimasi awal
-  document.getElementById("info").innerText = "Kalibrasi KTP aktif";
+// kalibrasi REAL (ambil ukuran saat ini)
+function captureCalibration() {
+  if (!stableCorners) return;
+
+  let pixelWidth = distance(stableCorners[0], stableCorners[1]);
+
+  let real = prompt("Masukkan panjang asli (cm):");
+
+  scale = real / pixelWidth;
+
+  locked = true;
+
+  document.getElementById("info").innerText = "Terkunci & siap ukur ✔";
 }
 
-function calibrateA4() {
-  scale = 21 / 300;
-  document.getElementById("info").innerText = "Kalibrasi A4 aktif";
+function unlock(){
+  locked=false;
 }
 </script>
 
