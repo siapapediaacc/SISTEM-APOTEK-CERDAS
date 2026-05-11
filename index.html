@@ -5,8 +5,7 @@ html_content = '''<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Germ Hunter AR - Berburu Kuman!</title>
+    <title>Germ Hunter AR - WebXR Edition</title>
     <style>
         * {
             margin: 0;
@@ -27,64 +26,14 @@ html_content = '''<!DOCTYPE html>
             width: 100vw;
         }
         
-        /* ===== CAMERA VIDEO ===== */
-        #cameraVideo {
+        /* ===== WEBXR CANVAS ===== */
+        #xrCanvas {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            object-fit: cover;
             z-index: 1;
-            background: #000;
-        }
-        
-        /* ===== SCANNER OVERLAY ===== */
-        .scanner-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 2;
-            background: linear-gradient(
-                180deg,
-                transparent 0%,
-                rgba(0, 255, 100, 0.03) 50%,
-                transparent 100%
-            );
-            animation: scan 3s linear infinite;
-        }
-        
-        @keyframes scan {
-            0% { transform: translateY(-100%); }
-            100% { transform: translateY(100vh); }
-        }
-        
-        .grid-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 2;
-            background-image: 
-                linear-gradient(rgba(0, 255, 100, 0.08) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 255, 100, 0.08) 1px, transparent 1px);
-            background-size: 50px 50px;
-        }
-        
-        /* ===== GAME CANVAS ===== */
-        #gameCanvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 10;
-            cursor: crosshair;
         }
         
         /* ===== HUD ===== */
@@ -100,7 +49,7 @@ html_content = '''<!DOCTYPE html>
             align-items: center;
             background: rgba(0, 0, 0, 0.5);
             backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            pointer-events: none;
         }
         
         .hud-item {
@@ -134,75 +83,6 @@ html_content = '''<!DOCTYPE html>
         .health-heart.lost {
             opacity: 0.2;
             filter: grayscale(1);
-        }
-        
-        /* ===== RADAR MINIMAP ===== */
-        .radar {
-            position: fixed;
-            bottom: 130px;
-            right: 15px;
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            background: rgba(0, 0, 0, 0.6);
-            border: 2px solid rgba(76, 217, 100, 0.5);
-            z-index: 100;
-            overflow: hidden;
-        }
-        
-        .radar::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 4px;
-            height: 4px;
-            background: #4cd964;
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 0 10px #4cd964;
-        }
-        
-        .radar-sweep {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 50%;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, rgba(76, 217, 100, 0.8));
-            transform-origin: left center;
-            animation: radarSweep 2s linear infinite;
-        }
-        
-        @keyframes radarSweep {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .radar-dot {
-            position: absolute;
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-        }
-        
-        /* ===== COMPASS ===== */
-        .compass {
-            position: fixed;
-            top: 70px;
-            right: 15px;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: rgba(0, 0, 0, 0.6);
-            border: 2px solid rgba(76, 217, 100, 0.3);
-            z-index: 100;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            transition: transform 0.1s;
         }
         
         /* ===== START SCREEN ===== */
@@ -251,6 +131,16 @@ html_content = '''<!DOCTYPE html>
             margin-bottom: 20px;
         }
         
+        .browser-info {
+            font-size: 14px;
+            color: #ff9500;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background: rgba(255, 149, 0, 0.1);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 149, 0, 0.3);
+        }
+        
         .game-instructions {
             font-size: 14px;
             color: #aaa;
@@ -282,14 +172,17 @@ html_content = '''<!DOCTYPE html>
             box-shadow: 0 0 40px rgba(76, 217, 100, 0.6);
         }
         
-        .start-btn:active {
-            transform: scale(0.95);
+        .start-btn:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+            box-shadow: none;
         }
         
-        .simulation-btn {
+        .fallback-btn {
             background: transparent;
-            color: #666;
-            border: 1px solid #333;
+            color: #4cd964;
+            border: 2px solid #4cd964;
             padding: 12px 30px;
             border-radius: 20px;
             font-size: 14px;
@@ -354,44 +247,6 @@ html_content = '''<!DOCTYPE html>
             cursor: pointer;
         }
         
-        /* ===== LEVEL UP NOTIFICATION ===== */
-        .level-up {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) scale(0);
-            background: rgba(76, 217, 100, 0.9);
-            color: #000;
-            padding: 20px 40px;
-            border-radius: 15px;
-            font-size: 24px;
-            font-weight: 700;
-            z-index: 300;
-            transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            pointer-events: none;
-        }
-        
-        .level-up.show {
-            transform: translate(-50%, -50%) scale(1);
-        }
-        
-        /* ===== COMBO TEXT ===== */
-        .combo-text {
-            position: fixed;
-            font-size: 36px;
-            font-weight: 800;
-            color: #ffcc00;
-            text-shadow: 0 0 20px rgba(255, 204, 0, 0.8);
-            z-index: 200;
-            pointer-events: none;
-            animation: comboFloat 1s ease-out forwards;
-        }
-        
-        @keyframes comboFloat {
-            0% { opacity: 1; transform: translateY(0) scale(1); }
-            100% { opacity: 0; transform: translateY(-80px) scale(1.5); }
-        }
-        
         /* ===== TOAST ===== */
         .toast {
             position: fixed;
@@ -414,113 +269,45 @@ html_content = '''<!DOCTYPE html>
             opacity: 1;
         }
         
-        /* ===== GERM INFO ===== */
-        .germ-info {
-            position: fixed;
-            bottom: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 100;
-            display: flex;
-            gap: 15px;
-            opacity: 0.7;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 8px 15px;
-            border-radius: 20px;
-        }
-        
-        .germ-type {
-            text-align: center;
-            font-size: 11px;
-        }
-        
-        .germ-type-icon {
-            font-size: 24px;
-        }
-        
-        .germ-type-points {
-            color: #4cd964;
-            font-weight: 600;
-        }
-        
-        /* ===== DIRECTION ARROW ===== */
-        .direction-arrow {
+        /* ===== LOADING ===== */
+        .loading {
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 40px;
-            z-index: 50;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.3s;
-            text-shadow: 0 0 20px rgba(255, 204, 0, 0.8);
-        }
-        
-        .direction-arrow.show {
-            opacity: 1;
-        }
-        
-        /* ===== CALIBRATION SCREEN ===== */
-        .calibration-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            z-index: 600;
+            z-index: 400;
             display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 40px;
             text-align: center;
         }
         
-        .calibration-screen.active {
-            display: flex;
+        .loading.active {
+            display: block;
         }
         
-        .calibration-title {
-            font-size: 24px;
-            font-weight: 700;
-            color: #4cd964;
-            margin-bottom: 20px;
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(76, 217, 100, 0.3);
+            border-top-color: #4cd964;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
         }
         
-        .calibration-text {
-            font-size: 16px;
-            color: #aaa;
-            line-height: 1.6;
-            margin-bottom: 30px;
-        }
-        
-        .calibration-btn {
-            background: #4cd964;
-            color: #000;
-            border: none;
-            padding: 15px 40px;
-            border-radius: 25px;
-            font-size: 18px;
-            font-weight: 700;
-            cursor: pointer;
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
+    
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
-    <!-- Camera Video -->
-    <video id="cameraVideo" autoplay playsinline muted></video>
-    
-    <!-- Scanner Effects -->
-    <div class="scanner-overlay"></div>
-    <div class="grid-overlay"></div>
-    
-    <!-- Game Canvas -->
-    <canvas id="gameCanvas"></canvas>
+    <!-- WebXR Canvas -->
+    <canvas id="xrCanvas"></canvas>
     
     <!-- HUD -->
-    <div class="hud">
+    <div class="hud" id="hud" style="display: none;">
         <div class="hud-item">
             <div class="hud-label">Skor</div>
             <div class="hud-value" id="scoreValue">0</div>
@@ -543,65 +330,28 @@ html_content = '''<!DOCTYPE html>
         </div>
     </div>
     
-    <!-- Compass -->
-    <div class="compass" id="compass">🧭</div>
-    
-    <!-- Radar Minimap -->
-    <div class="radar" id="radar">
-        <div class="radar-sweep"></div>
-    </div>
-    
-    <!-- Direction Arrow -->
-    <div class="direction-arrow" id="directionArrow">⬆️</div>
-    
-    <!-- Germ Info -->
-    <div class="germ-info" id="germInfo">
-        <div class="germ-type">
-            <div class="germ-type-icon">🦠</div>
-            <div class="germ-type-points">+10</div>
-        </div>
-        <div class="germ-type">
-            <div class="germ-type-icon">🧟</div>
-            <div class="germ-type-points">+25</div>
-        </div>
-        <div class="germ-type">
-            <div class="germ-type-icon">👾</div>
-            <div class="germ-type-points">+50</div>
-        </div>
-        <div class="germ-type">
-            <div class="germ-type-icon">💀</div>
-            <div class="germ-type-points">-1 ❤️</div>
-        </div>
-    </div>
-    
     <!-- Start Screen -->
     <div class="start-screen" id="startScreen">
         <div class="game-logo">🦠</div>
         <div class="game-title">GERM HUNTER AR</div>
-        <div class="game-subtitle">Berburu Kuman di Dunia Nyata!</div>
+        <div class="game-subtitle">WebXR Edition</div>
+        <div class="browser-info" id="browserInfo">Mendeteksi browser...</div>
         <div class="game-instructions">
             <strong>🎮 Cara Main:</strong><br>
-            • Kuman muncul di sekitar Anda<br>
-            • <strong>Gerakkan HP</strong> untuk mencari kuman<br>
-            • Kuman di <strong>kiri</strong>? Arahkan HP ke kiri!<br>
-            • Kuman di <strong>kanan</strong>? Arahkan HP ke kanan!<br>
-            • <strong>Ketuk</strong> kuman untuk membasminya<br>
+            • Kuman muncul di permukaan nyata (meja/lantai/dinding)<br>
+            • <strong>Gerakkan HP</strong> untuk melihat sekeliling<br>
+            • <strong>Ketuk kuman</strong> untuk membasminya<br>
             • Hindari 💀 Toxic!<br><br>
-            <strong>📱 Gunakan gyroscope untuk AR experience!</strong>
+            <strong>📱 Butuh Chrome Android dengan ARCore</strong>
         </div>
-        <button class="start-btn" id="startBtn">MULAI BERBURU!</button>
-        <button class="simulation-btn" id="simBtn">Mode Tanpa Kamera</button>
+        <button class="start-btn" id="startBtn">MULAI AR!</button>
+        <button class="fallback-btn" id="fallbackBtn" style="display: none;">Mode Gyroscope (iOS)</button>
     </div>
     
-    <!-- Calibration Screen -->
-    <div class="calibration-screen" id="calibrationScreen">
-        <div class="calibration-title">🧭 Kalibrasi</div>
-        <div class="calibration-text">
-            Arahkan HP Anda ke depan (posisi netral)<br>
-            lalu tekan tombol di bawah<br><br>
-            Ini akan men-set posisi awal kamera AR
-        </div>
-        <button class="calibration-btn" id="calibrateBtn">✅ POSISI NETRAL</button>
+    <!-- Loading -->
+    <div class="loading" id="loading">
+        <div class="loading-spinner"></div>
+        <div>Memulai WebXR...</div>
     </div>
     
     <!-- Game Over Screen -->
@@ -613,9 +363,6 @@ html_content = '''<!DOCTYPE html>
         <button class="restart-btn" id="restartBtn">BERBURU LAGI!</button>
     </div>
     
-    <!-- Level Up -->
-    <div class="level-up" id="levelUp">LEVEL UP!</div>
-    
     <!-- Toast -->
     <div class="toast" id="toast"></div>
 
@@ -626,33 +373,10 @@ html_content = '''<!DOCTYPE html>
         let timeLeft = 60;
         let health = 3;
         let gameRunning = false;
-        let germs = [];
-        let particles = [];
-        let combo = 0;
-        let lastKillTime = 0;
         let totalGermsKilled = 0;
         let maxCombo = 0;
-        let cameraStream = null;
-        let isSimulationMode = false;
         
-        // ===== AR / GYROSCOPE STATE =====
-        let cameraYaw = 0;      // Horizontal rotation (left/right)
-        let cameraPitch = 0;    // Vertical rotation (up/down)
-        let baseYaw = 0;        // Calibration reference
-        let basePitch = 0;      // Calibration reference
-        let isCalibrated = false;
-        let gyroscopeAvailable = false;
-        
-        // World settings - kuman exist in 3D world coordinates
-        const WORLD_WIDTH = 2000;   // Virtual world width in pixels
-        const WORLD_HEIGHT = 1500;  // Virtual world height in pixels
-        const VIEW_ANGLE_H = 60;    // Horizontal viewing angle in degrees
-        const VIEW_ANGLE_V = 45;    // Vertical viewing angle in degrees
-        
-        // ===== DOM ELEMENTS =====
-        const video = document.getElementById('cameraVideo');
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+        // ===== DOM =====
         const scoreValue = document.getElementById('scoreValue');
         const levelValue = document.getElementById('levelValue');
         const timeValue = document.getElementById('timeValue');
@@ -661,233 +385,95 @@ html_content = '''<!DOCTYPE html>
         const gameOverScreen = document.getElementById('gameOverScreen');
         const finalScore = document.getElementById('finalScore');
         const finalStats = document.getElementById('finalStats');
-        const levelUp = document.getElementById('levelUp');
         const toast = document.getElementById('toast');
-        const compass = document.getElementById('compass');
-        const radar = document.getElementById('radar');
-        const directionArrow = document.getElementById('directionArrow');
-        const calibrationScreen = document.getElementById('calibrationScreen');
-        const germInfo = document.getElementById('germInfo');
+        const browserInfo = document.getElementById('browserInfo');
+        const startBtn = document.getElementById('startBtn');
+        const fallbackBtn = document.getElementById('fallbackBtn');
+        const loading = document.getElementById('loading');
+        const hud = document.getElementById('hud');
         
-        // ===== CANVAS SETUP =====
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
-        
-        // ===== CAMERA SETUP =====
-        async function startCamera() {
-            try {
-                if (cameraStream) {
-                    cameraStream.getTracks().forEach(track => track.stop());
-                }
-                const constraints = {
-                    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-                    audio: false
-                };
-                cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
-                video.srcObject = cameraStream;
-                video.onloadedmetadata = () => video.play();
-            } catch (err) {
-                console.error('Camera error:', err);
-                enableSimulationMode();
-            }
-        }
-        
-        function enableSimulationMode() {
-            isSimulationMode = true;
-            video.style.display = 'none';
-            document.querySelector('.scanner-overlay').style.display = 'none';
-            document.querySelector('.grid-overlay').style.display = 'none';
-            
-            const simBg = document.createElement('div');
-            simBg.id = 'simBg';
-            simBg.style.cssText = `
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                background: linear-gradient(135deg, #0a1628 0%, #1a2f4a 50%, #0d2137 100%);
-                z-index: 1;
-            `;
-            document.body.insertBefore(simBg, video);
-            
-            const particleBg = document.createElement('div');
-            particleBg.style.cssText = `
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                z-index: 1; pointer-events: none;
-                background-image: radial-gradient(circle at 20% 50%, rgba(76, 217, 100, 0.1) 0%, transparent 50%),
-                                  radial-gradient(circle at 80% 80%, rgba(0, 200, 255, 0.1) 0%, transparent 50%),
-                                  radial-gradient(circle at 40% 20%, rgba(255, 200, 0, 0.05) 0%, transparent 50%);
-            `;
-            document.body.insertBefore(particleBg, video);
-        }
-        
-        // ===== GYROSCOPE SETUP =====
-        function initGyroscope() {
-            if (window.DeviceOrientationEvent) {
-                window.addEventListener('deviceorientation', handleOrientation);
-                gyroscopeAvailable = true;
-                
-                // For iOS 13+ permission
-                if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                    DeviceOrientationEvent.requestPermission()
-                        .then(response => {
-                            if (response === 'granted') {
-                                gyroscopeAvailable = true;
-                            }
-                        })
-                        .catch(console.error);
-                }
-            } else {
-                // Fallback: use mouse/touch drag to simulate camera movement
-                gyroscopeAvailable = false;
-                initMouseControl();
-            }
-        }
-        
-        function handleOrientation(e) {
-            if (!isCalibrated) return;
-            
-            // alpha: compass direction (0-360)
-            // beta: front-back tilt (-180 to 180)
-            // gamma: left-right tilt (-90 to 90)
-            
-            const alpha = e.alpha || 0;
-            const beta = e.beta || 0;
-            const gamma = e.gamma || 0;
-            
-            // Calculate relative rotation from calibration point
-            let yaw = alpha - baseYaw;
-            let pitch = beta - basePitch;
-            
-            // Normalize yaw to -180 to 180
-            if (yaw > 180) yaw -= 360;
-            if (yaw < -180) yaw += 360;
-            
-            cameraYaw = yaw;
-            cameraPitch = pitch;
-            
-            // Update compass
-            compass.style.transform = `translate(-50%, -50%) rotate(${alpha}deg)`;
-        }
-        
-        // Mouse/Touch fallback for desktop testing
-        let isDragging = false;
-        let lastMouseX = 0;
-        let lastMouseY = 0;
-        
-        function initMouseControl() {
-            document.addEventListener('mousedown', (e) => {
-                if (!gameRunning) return;
-                isDragging = true;
-                lastMouseX = e.clientX;
-                lastMouseY = e.clientY;
-            });
-            
-            document.addEventListener('mousemove', (e) => {
-                if (!isDragging || !gameRunning) return;
-                const dx = e.clientX - lastMouseX;
-                const dy = e.clientY - lastMouseY;
-                
-                cameraYaw -= dx * 0.5;
-                cameraPitch -= dy * 0.5;
-                
-                // Clamp pitch
-                cameraPitch = Math.max(-60, Math.min(60, cameraPitch));
-                
-                lastMouseX = e.clientX;
-                lastMouseY = e.clientY;
-            });
-            
-            document.addEventListener('mouseup', () => {
-                isDragging = false;
-            });
-            
-            // Touch support for mouse fallback
-            document.addEventListener('touchstart', (e) => {
-                if (!gameRunning) return;
-                isDragging = true;
-                lastMouseX = e.touches[0].clientX;
-                lastMouseY = e.touches[0].clientY;
-            }, {passive: true});
-            
-            document.addEventListener('touchmove', (e) => {
-                if (!isDragging || !gameRunning) return;
-                const dx = e.touches[0].clientX - lastMouseX;
-                const dy = e.touches[0].clientY - lastMouseY;
-                
-                cameraYaw -= dx * 0.5;
-                cameraPitch -= dy * 0.5;
-                
-                cameraPitch = Math.max(-60, Math.min(60, cameraPitch));
-                
-                lastMouseX = e.touches[0].clientX;
-                lastMouseY = e.touches[0].clientY;
-            }, {passive: true});
-            
-            document.addEventListener('touchend', () => {
-                isDragging = false;
-            });
-        }
-        
-        // ===== CALIBRATION =====
-        function calibrate() {
-            if (gyroscopeAvailable) {
-                // Get current orientation as base
-                const e = window.lastOrientationEvent;
-                if (e) {
-                    baseYaw = e.alpha || 0;
-                    basePitch = e.beta || 0;
-                }
-            }
-            isCalibrated = true;
-            calibrationScreen.classList.remove('active');
-            startGameAfterCalibration();
-        }
-        
-        // Store last orientation for calibration
-        window.lastOrientationEvent = null;
-        window.addEventListener('deviceorientation', (e) => {
-            window.lastOrientationEvent = e;
+        // ===== THREE.JS SETUP =====
+        const canvas = document.getElementById('xrCanvas');
+        const renderer = new THREE.WebGLRenderer({ 
+            canvas: canvas, 
+            antialias: true, 
+            alpha: true 
         });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.xr.enabled = true;
+        
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(5, 10, 5);
+        scene.add(directionalLight);
         
         // ===== GERM TYPES =====
         const germTypes = [
-            { emoji: '🦠', points: 10, speed: 0.3, size: 50, health: 1, color: '#4cd964', name: 'Bacteria' },
-            { emoji: '🧟', points: 25, speed: 0.5, size: 60, health: 2, color: '#ff9500', name: 'Virus' },
-            { emoji: '👾', points: 50, speed: 0.7, size: 65, health: 3, color: '#ff2d55', name: 'Superbug' },
-            { emoji: '💀', points: -50, speed: 0.8, size: 55, health: 1, color: '#ff3b30', name: 'Toxic', bad: true }
+            { emoji: '🦠', points: 10, color: 0x4cd964, scale: 0.3, health: 1, name: 'Bacteria' },
+            { emoji: '🧟', points: 25, color: 0xff9500, scale: 0.4, health: 2, name: 'Virus' },
+            { emoji: '👾', points: 50, color: 0xff2d55, scale: 0.45, health: 3, name: 'Superbug' },
+            { emoji: '💀', points: -50, color: 0xff3b30, scale: 0.35, health: 1, name: 'Toxic', bad: true }
         ];
         
-        // ===== GERMS IN WORLD SPACE =====
-        class WorldGerm {
-            constructor() {
+        // ===== GERM CLASS =====
+        class ARGerm {
+            constructor(position, anchor = null) {
                 const type = this.selectType();
                 this.type = type;
-                
-                // Position in world coordinates (fixed position in virtual world)
-                this.worldX = (Math.random() - 0.5) * WORLD_WIDTH;
-                this.worldY = (Math.random() - 0.5) * WORLD_HEIGHT;
-                this.worldZ = 200 + Math.random() * 300; // Distance from camera
-                
-                this.size = type.size;
                 this.health = type.health;
                 this.maxHealth = type.health;
-                this.speed = type.speed;
                 this.dead = false;
                 this.lifeTime = 0;
-                this.maxLifeTime = 1200 + Math.random() * 600;
+                this.maxLifeTime = 1000 + Math.random() * 500;
+                this.anchor = anchor;
                 
-                // Movement in world space
-                this.vx = (Math.random() - 0.5) * this.speed;
-                this.vy = (Math.random() - 0.5) * this.speed;
+                // Create 3D object
+                this.group = new THREE.Group();
+                this.group.position.copy(position);
                 
-                // Visual
+                // Body (sphere)
+                const geometry = new THREE.SphereGeometry(type.scale, 16, 16);
+                const material = new THREE.MeshStandardMaterial({
+                    color: type.color,
+                    emissive: type.color,
+                    emissiveIntensity: 0.3,
+                    roughness: 0.4,
+                    metalness: 0.6
+                });
+                this.mesh = new THREE.Mesh(geometry, material);
+                this.group.add(this.mesh);
+                
+                // Glow ring
+                const ringGeo = new THREE.RingGeometry(type.scale * 1.2, type.scale * 1.4, 32);
+                const ringMat = new THREE.MeshBasicMaterial({
+                    color: type.color,
+                    transparent: true,
+                    opacity: 0.5,
+                    side: THREE.DoubleSide
+                });
+                this.ring = new THREE.Mesh(ringGeo, ringMat);
+                this.ring.rotation.x = -Math.PI / 2;
+                this.group.add(this.ring);
+                
+                // Label sprite
+                this.createLabel(type.emoji);
+                
+                // Animation
                 this.wobble = Math.random() * Math.PI * 2;
-                this.wobbleSpeed = 0.03 + Math.random() * 0.04;
+                this.wobbleSpeed = 0.02 + Math.random() * 0.03;
                 this.pulsePhase = 0;
-                this.scale = 0;
-                this.scaleTarget = 1;
+                
+                scene.add(this.group);
+                
+                // Scale animation
+                this.targetScale = 1;
+                this.currentScale = 0;
             }
             
             selectType() {
@@ -898,24 +484,45 @@ html_content = '''<!DOCTYPE html>
                 return germTypes[3];
             }
             
+            createLabel(text) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 128;
+                canvas.height = 128;
+                const ctx = canvas.getContext('2d');
+                ctx.font = '80px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(text, 64, 64);
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                const spriteMat = new THREE.SpriteMaterial({ map: texture });
+                const sprite = new THREE.Sprite(spriteMat);
+                sprite.scale.set(0.5, 0.5, 0.5);
+                sprite.position.y = this.type.scale + 0.2;
+                this.group.add(sprite);
+                this.sprite = sprite;
+            }
+            
             update() {
                 this.lifeTime++;
                 this.wobble += this.wobbleSpeed;
-                this.pulsePhase += 0.1;
+                this.pulsePhase += 0.05;
                 
                 // Spawn animation
-                if (this.scale < this.scaleTarget) {
-                    this.scale += 0.08;
-                    if (this.scale > this.scaleTarget) this.scale = this.scaleTarget;
+                if (this.currentScale < this.targetScale) {
+                    this.currentScale += 0.05;
+                    this.group.scale.setScalar(this.currentScale);
                 }
                 
-                // Move in world space
-                this.worldX += this.vx;
-                this.worldY += this.vy;
+                // Float animation
+                this.group.position.y += Math.sin(this.wobble) * 0.002;
                 
-                // Keep within world bounds
-                if (Math.abs(this.worldX) > WORLD_WIDTH / 2) this.vx *= -1;
-                if (Math.abs(this.worldY) > WORLD_HEIGHT / 2) this.vy *= -1;
+                // Ring rotation
+                this.ring.rotation.z += 0.02;
+                
+                // Pulse glow
+                const pulse = 1 + Math.sin(this.pulsePhase) * 0.2;
+                this.mesh.scale.setScalar(pulse);
                 
                 // Die if lifetime exceeded
                 if (this.lifeTime > this.maxLifeTime && !this.type.bad) {
@@ -923,254 +530,320 @@ html_content = '''<!DOCTYPE html>
                 }
             }
             
-            // Check if this germ is visible based on camera orientation
-            isVisible() {
-                // Calculate relative angle from camera
-                const relYaw = Math.atan2(this.worldX, this.worldZ) * (180 / Math.PI);
-                const relPitch = Math.atan2(this.worldY, this.worldZ) * (180 / Math.PI);
-                
-                const yawDiff = relYaw - cameraYaw;
-                const pitchDiff = relPitch - cameraPitch;
-                
-                // Normalize
-                let normalizedYaw = yawDiff;
-                if (normalizedYaw > 180) normalizedYaw -= 360;
-                if (normalizedYaw < -180) normalizedYaw += 360;
-                
-                // Check if within viewing angle
-                return Math.abs(normalizedYaw) < VIEW_ANGLE_H && Math.abs(pitchDiff) < VIEW_ANGLE_V;
-            }
-            
-            // Get screen position (if visible)
-            getScreenPosition() {
-                const relYaw = Math.atan2(this.worldX, this.worldZ) * (180 / Math.PI);
-                const relPitch = Math.atan2(this.worldY, this.worldZ) * (180 / Math.PI);
-                
-                const yawDiff = relYaw - cameraYaw;
-                const pitchDiff = relPitch - cameraPitch;
-                
-                let normalizedYaw = yawDiff;
-                if (normalizedYaw > 180) normalizedYaw -= 360;
-                if (normalizedYaw < -180) normalizedYaw += 360;
-                
-                // Map to screen coordinates
-                const screenX = canvas.width / 2 + (normalizedYaw / VIEW_ANGLE_H) * (canvas.width / 2);
-                const screenY = canvas.height / 2 + (pitchDiff / VIEW_ANGLE_V) * (canvas.height / 2);
-                
-                // Scale based on distance (closer = bigger)
-                const distanceScale = 300 / this.worldZ;
-                
-                return { x: screenX, y: screenY, scale: distanceScale };
-            }
-            
-            draw() {
-                const pos = this.getScreenPosition();
-                if (!pos) return;
-                
-                const screenX = pos.x;
-                const screenY = pos.y;
-                const distanceScale = pos.scale;
-                
-                // Don't draw if off screen
-                if (screenX < -100 || screenX > canvas.width + 100 || 
-                    screenY < -100 || screenY > canvas.height + 100) return;
-                
-                ctx.save();
-                ctx.translate(screenX, screenY);
-                ctx.scale(this.scale * distanceScale, this.scale * distanceScale);
-                
-                // Glow effect
-                const glowSize = this.size * 1.5 + Math.sin(this.pulsePhase) * 5;
-                const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, glowSize);
-                gradient.addColorStop(0, this.type.color + '40');
-                gradient.addColorStop(1, 'transparent');
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.arc(0, 0, glowSize, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Health ring
-                if (this.maxHealth > 1) {
-                    ctx.strokeStyle = this.type.color + '60';
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    ctx.arc(0, 0, this.size * 0.7, 0, Math.PI * 2);
-                    ctx.stroke();
-                    
-                    const healthAngle = (this.health / this.maxHealth) * Math.PI * 2;
-                    ctx.strokeStyle = this.type.color;
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    ctx.arc(0, 0, this.size * 0.7, -Math.PI / 2, -Math.PI / 2 + healthAngle);
-                    ctx.stroke();
-                }
-                
-                // Main body
-                ctx.font = `${this.size}px Arial`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(this.type.emoji, 0, 0);
-                
-                // Distance indicator
-                const dist = Math.round(this.worldZ / 10);
-                ctx.fillStyle = 'rgba(255,255,255,0.7)';
-                ctx.font = 'bold 11px Arial';
-                ctx.fillText(`${dist}cm`, 0, this.size * 0.9);
-                
-                ctx.restore();
-            }
-            
             hit() {
                 this.health--;
+                
+                // Flash effect
+                this.mesh.material.emissiveIntensity = 1;
+                setTimeout(() => {
+                    if (this.mesh) this.mesh.material.emissiveIntensity = 0.3;
+                }, 100);
+                
                 if (this.health <= 0) {
                     this.dead = true;
                     return true;
                 }
-                this.scale = 1.3;
-                setTimeout(() => { this.scale = 1; }, 100);
                 return false;
             }
             
-            contains(screenX, screenY) {
-                const pos = this.getScreenPosition();
-                if (!pos) return false;
-                
-                const dist = Math.sqrt((screenX - pos.x) ** 2 + (screenY - pos.y) ** 2);
-                return dist < this.size * pos.scale;
-            }
-        }
-        
-        // ===== PARTICLE SYSTEM =====
-        class Particle {
-            constructor(x, y, color) {
-                this.x = x;
-                this.y = y;
-                this.vx = (Math.random() - 0.5) * 8;
-                this.vy = (Math.random() - 0.5) * 8;
-                this.life = 1;
-                this.decay = 0.02 + Math.random() * 0.03;
-                this.size = 3 + Math.random() * 5;
-                this.color = color;
-            }
-            
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                this.vy += 0.2;
-                this.life -= this.decay;
-            }
-            
-            draw() {
-                ctx.globalAlpha = this.life;
-                ctx.fillStyle = this.color;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size * this.life, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.globalAlpha = 1;
-            }
-        }
-        
-        function createExplosion(x, y, color, count = 15) {
-            for (let i = 0; i < count; i++) {
-                particles.push(new Particle(x, y, color));
-            }
-        }
-        
-        function showComboText(x, y, text) {
-            const el = document.createElement('div');
-            el.className = 'combo-text';
-            el.textContent = text;
-            el.style.left = x + 'px';
-            el.style.top = y + 'px';
-            document.body.appendChild(el);
-            setTimeout(() => el.remove(), 1000);
-        }
-        
-        // ===== UPDATE RADAR =====
-        function updateRadar() {
-            // Clear old dots
-            const oldDots = radar.querySelectorAll('.radar-dot');
-            oldDots.forEach(d => d.remove());
-            
-            // Add dots for visible germs
-            germs.forEach(germ => {
-                if (germ.dead) return;
-                
-                const dot = document.createElement('div');
-                dot.className = 'radar-dot';
-                
-                // Map world position to radar (100px = 2000px world)
-                const radarX = 50 + (germ.worldX / WORLD_WIDTH) * 50;
-                const radarY = 50 + (germ.worldY / WORLD_HEIGHT) * 50;
-                
-                dot.style.left = radarX + '%';
-                dot.style.top = radarY + '%';
-                dot.style.background = germ.type.color;
-                
-                if (germ.type.bad) {
-                    dot.style.boxShadow = '0 0 5px #ff3b30';
+            destroy() {
+                scene.remove(this.group);
+                this.mesh.geometry.dispose();
+                this.mesh.material.dispose();
+                this.ring.geometry.dispose();
+                this.ring.material.dispose();
+                if (this.sprite) {
+                    this.sprite.material.map.dispose();
+                    this.sprite.material.dispose();
                 }
-                
-                radar.appendChild(dot);
-            });
+            }
+            
+            getDistanceFromCamera() {
+                return this.group.position.distanceTo(camera.position);
+            }
         }
         
-        // ===== DIRECTION INDICATOR =====
-        function updateDirectionArrow() {
-            let nearestGerm = null;
-            let nearestDist = Infinity;
+        // ===== GAME VARIABLES =====
+        let germs = [];
+        let xrSession = null;
+        let xrReferenceSpace = null;
+        let hitTestSource = null;
+        let hitTestSourceRequested = false;
+        let reticle = null;
+        let isARSupported = false;
+        let combo = 0;
+        let lastKillTime = 0;
+        let gameLoopId = null;
+        let timerInterval = null;
+        
+        // ===== RETICLE (placement indicator) =====
+        function createReticle() {
+            const geometry = new THREE.RingGeometry(0.15, 0.2, 32);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0x4cd964,
+                transparent: true,
+                opacity: 0.8,
+                side: THREE.DoubleSide
+            });
+            reticle = new THREE.Mesh(geometry, material);
+            reticle.rotation.x = -Math.PI / 2;
+            reticle.visible = false;
+            scene.add(reticle);
+        }
+        
+        // ===== CHECK AR SUPPORT =====
+        async function checkARSupport() {
+            if (navigator.xr) {
+                try {
+                    isARSupported = await navigator.xr.isSessionSupported('immersive-ar');
+                    if (isARSupported) {
+                        browserInfo.textContent = '✅ WebXR AR tersedia!';
+                        browserInfo.style.color = '#4cd964';
+                        browserInfo.style.borderColor = 'rgba(76, 217, 100, 0.3)';
+                        startBtn.disabled = false;
+                    } else {
+                        browserInfo.textContent = '❌ WebXR AR tidak tersedia di browser ini';
+                        browserInfo.style.color = '#ff3b30';
+                        fallbackBtn.style.display = 'block';
+                        startBtn.disabled = true;
+                    }
+                } catch (e) {
+                    browserInfo.textContent = '❌ WebXR tidak didukung';
+                    browserInfo.style.color = '#ff3b30';
+                    fallbackBtn.style.display = 'block';
+                    startBtn.disabled = true;
+                }
+            } else {
+                browserInfo.textContent = '❌ Browser tidak support WebXR';
+                browserInfo.style.color = '#ff3b30';
+                fallbackBtn.style.display = 'block';
+                startBtn.disabled = true;
+            }
+        }
+        
+        // ===== START AR SESSION =====
+        async function startARSession() {
+            loading.classList.add('active');
             
-            germs.forEach(germ => {
-                if (germ.dead || germ.type.bad) return;
+            try {
+                xrSession = await navigator.xr.requestSession('immersive-ar', {
+                    requiredFeatures: ['hit-test'],
+                    optionalFeatures: ['dom-overlay'],
+                    domOverlay: { root: document.body }
+                });
                 
-                const relYaw = Math.atan2(germ.worldX, germ.worldZ) * (180 / Math.PI);
-                const yawDiff = relYaw - cameraYaw;
-                let normalizedYaw = yawDiff;
-                if (normalizedYaw > 180) normalizedYaw -= 360;
-                if (normalizedYaw < -180) normalizedYaw += 360;
+                renderer.xr.setSession(xrSession);
                 
-                if (Math.abs(normalizedYaw) > VIEW_ANGLE_H && Math.abs(normalizedYaw) < nearestDist) {
-                    nearestDist = Math.abs(normalizedYaw);
+                xrReferenceSpace = await xrSession.requestReferenceSpace('local');
+                
+                const viewerSpace = await xrSession.requestReferenceSpace('viewer');
+                hitTestSource = await xrSession.requestHitTestSource({
+                    space: viewerSpace
+                });
+                hitTestSourceRequested = true;
+                
+                xrSession.addEventListener('end', onXRSessionEnd);
+                xrSession.addEventListener('select', onXRSelect);
+                
+                loading.classList.remove('active');
+                startScreen.classList.add('hidden');
+                hud.style.display = 'flex';
+                
+                startGame();
+                renderer.setAnimationLoop(renderLoop);
+                
+            } catch (err) {
+                console.error('AR Session error:', err);
+                loading.classList.remove('active');
+                showToast('Gagal memulai AR: ' + err.message);
+                fallbackBtn.style.display = 'block';
+            }
+        }
+        
+        // ===== RENDER LOOP =====
+        function renderLoop(timestamp, frame) {
+            if (!frame) return;
+            
+            const session = renderer.xr.getSession();
+            if (!session) return;
+            
+            const referenceSpace = renderer.xr.getReferenceSpace();
+            
+            // Hit test
+            if (hitTestSource) {
+                const hitTestResults = frame.getHitTestResults(hitTestSource);
+                if (hitTestResults.length > 0) {
+                    const hit = hitTestResults[0];
+                    const pose = hit.getPose(referenceSpace);
+                    if (pose && reticle) {
+                        reticle.visible = true;
+                        reticle.position.set(
+                            pose.transform.position.x,
+                            pose.transform.position.y,
+                            pose.transform.position.z
+                        );
+                        reticle.updateMatrixWorld();
+                    }
+                } else if (reticle) {
+                    reticle.visible = false;
+                }
+            }
+            
+            // Update germs
+            updateGerms();
+            
+            renderer.render(scene, camera);
+        }
+        
+        // ===== UPDATE GERMS =====
+        function updateGerms() {
+            for (let i = germs.length - 1; i >= 0; i--) {
+                const germ = germs[i];
+                germ.update();
+                
+                if (germ.dead) {
+                    if (!germ.type.bad) {
+                        loseHealth();
+                    }
+                    germ.destroy();
+                    germs.splice(i, 1);
+                }
+            }
+        }
+        
+        // ===== SPAWN GERM =====
+        function spawnGerm() {
+            if (!gameRunning) return;
+            
+            const maxGerms = 3 + level;
+            if (germs.length < maxGerms && reticle && reticle.visible) {
+                // Spawn at reticle position with random offset
+                const offset = new THREE.Vector3(
+                    (Math.random() - 0.5) * 2,
+                    0,
+                    (Math.random() - 0.5) * 2
+                );
+                const position = reticle.position.clone().add(offset);
+                position.y = Math.max(0.1, position.y); // Don't go below ground
+                
+                const germ = new ARGerm(position);
+                germs.push(germ);
+            }
+            
+            const spawnDelay = Math.max(1000, 3000 - level * 200);
+            setTimeout(spawnGerm, spawnDelay);
+        }
+        
+        // ===== XR SELECT EVENT (tap) =====
+        function onXRSelect(event) {
+            if (!gameRunning) return;
+            
+            const frame = event.frame;
+            const referenceSpace = renderer.xr.getReferenceSpace();
+            const inputSource = event.inputSource;
+            
+            // Get touch position in 3D space
+            const gripPose = frame.getPose(inputSource.targetRaySpace, referenceSpace);
+            if (!gripPose) return;
+            
+            const rayOrigin = new THREE.Vector3(
+                gripPose.transform.position.x,
+                gripPose.transform.position.y,
+                gripPose.transform.position.z
+            );
+            const rayDirection = new THREE.Vector3(
+                gripPose.transform.orientation.x,
+                gripPose.transform.orientation.y,
+                gripPose.transform.orientation.z
+            );
+            
+            // Check which germ was hit
+            let hit = false;
+            let nearestDist = Infinity;
+            let nearestGerm = null;
+            
+            for (const germ of germs) {
+                if (germ.dead) continue;
+                
+                const dist = germ.getDistanceFromCamera();
+                if (dist < 2 && dist < nearestDist) {
+                    nearestDist = dist;
                     nearestGerm = germ;
                 }
-            });
+            }
             
             if (nearestGerm) {
-                const relYaw = Math.atan2(nearestGerm.worldX, nearestGerm.worldZ) * (180 / Math.PI);
-                const yawDiff = relYaw - cameraYaw;
-                let normalizedYaw = yawDiff;
-                if (normalizedYaw > 180) normalizedYaw -= 360;
-                if (normalizedYaw < -180) normalizedYaw += 360;
+                hit = true;
                 
-                let arrow = '⬆️';
-                if (normalizedYaw > 20) arrow = '➡️';
-                else if (normalizedYaw < -20) arrow = '⬅️';
-                
-                directionArrow.textContent = arrow;
-                directionArrow.classList.add('show');
-            } else {
-                directionArrow.classList.remove('show');
+                if (nearestGerm.type.bad) {
+                    loseHealth();
+                    showToast('💀 Toxic! -1 ❤️');
+                    nearestGerm.dead = true;
+                } else {
+                    const killed = nearestGerm.hit();
+                    if (killed) {
+                        totalGermsKilled++;
+                        const result = updateScore(nearestGerm.type.points);
+                        
+                        if (result.combo > 1) {
+                            showToast(`🔥 COMBO x${result.combo}! +${result.points}`);
+                        } else {
+                            showToast(`+${result.points}`);
+                        }
+                    }
+                }
+            }
+            
+            if (!hit) {
+                combo = 0;
             }
         }
         
         // ===== GAME FUNCTIONS =====
-        function spawnGerm() {
-            if (!gameRunning) return;
-            const maxGerms = 3 + level * 2;
-            if (germs.length < maxGerms) {
-                germs.push(new WorldGerm());
-            }
-            const spawnDelay = Math.max(800, 2500 - level * 200);
-            setTimeout(spawnGerm, spawnDelay);
+        function startGame() {
+            score = 0;
+            level = 1;
+            timeLeft = 60;
+            health = 3;
+            germs = [];
+            combo = 0;
+            lastKillTime = 0;
+            totalGermsKilled = 0;
+            maxCombo = 0;
+            gameRunning = true;
+            
+            scoreValue.textContent = '0';
+            levelValue.textContent = '1';
+            timeValue.textContent = '60';
+            timeValue.style.color = '#fff';
+            updateHealthDisplay();
+            
+            createReticle();
+            spawnGerm();
+            startTimer();
+            
+            showToast('Berburu dimulai! Scan permukaan untuk menemukan kuman!');
+        }
+        
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                if (!gameRunning) return;
+                timeLeft--;
+                timeValue.textContent = timeLeft;
+                
+                if (timeLeft <= 10) {
+                    timeValue.style.color = '#ff3b30';
+                }
+                
+                if (timeLeft <= 0) {
+                    gameOver();
+                }
+            }, 1000);
         }
         
         function loseHealth() {
             health--;
             updateHealthDisplay();
-            
-            canvas.style.transform = 'translate(5px, 5px)';
-            setTimeout(() => canvas.style.transform = 'translate(-5px, -5px)', 50);
-            setTimeout(() => canvas.style.transform = 'translate(0, 0)', 100);
             
             if (health <= 0) {
                 gameOver();
@@ -1207,241 +880,101 @@ html_content = '''<!DOCTYPE html>
             if (newLevel > level) {
                 level = newLevel;
                 levelValue.textContent = level;
-                showLevelUp();
-                timeLeft += 15;
-                showToast(`Level ${level}! Bonus waktu +15 detik!`);
+                showToast(`Level ${level}! Kuman semakin banyak!`);
             }
             
             return { combo: comboMultiplier, points: finalPoints };
         }
         
-        function showLevelUp() {
-            levelUp.classList.add('show');
-            setTimeout(() => levelUp.classList.remove('show'), 1500);
+        function gameOver() {
+            gameRunning = false;
+            clearInterval(timerInterval);
+            renderer.setAnimationLoop(null);
+            
+            // Clean up germs
+            for (const germ of germs) {
+                germ.destroy();
+            }
+            germs = [];
+            
+            if (reticle) {
+                scene.remove(reticle);
+                reticle = null;
+            }
+            
+            finalScore.textContent = score;
+            finalStats.innerHTML = `
+                Kuman dibasmi: <span style="color:#4cd964">${totalGermsKilled}</span><br>
+                Level tertinggi: <span style="color:#4cd964">${level}</span><br>
+                Combo maksimal: <span style="color:#ffcc00">x${maxCombo}</span>
+            `;
+            
+            hud.style.display = 'none';
+            gameOverScreen.classList.add('active');
         }
         
+        function onXRSessionEnd() {
+            gameRunning = false;
+            clearInterval(timerInterval);
+            renderer.setAnimationLoop(null);
+            hitTestSource = null;
+            hitTestSourceRequested = false;
+            xrSession = null;
+            
+            // Clean up
+            for (const germ of germs) {
+                germ.destroy();
+            }
+            germs = [];
+            
+            if (reticle) {
+                scene.remove(reticle);
+                reticle = null;
+            }
+            
+            hud.style.display = 'none';
+            startScreen.classList.remove('hidden');
+        }
+        
+        // ===== TOAST =====
         function showToast(message) {
             toast.textContent = message;
             toast.classList.add('show');
             setTimeout(() => toast.classList.remove('show'), 2000);
         }
         
-        // ===== INPUT HANDLING =====
-        function handleInput(e) {
-            if (!gameRunning) return;
-            e.preventDefault();
-            
-            const rect = canvas.getBoundingClientRect();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            const x = clientX - rect.left;
-            const y = clientY - rect.top;
-            
-            let hit = false;
-            
-            // Check hits (iterate backwards)
-            for (let i = germs.length - 1; i >= 0; i--) {
-                const germ = germs[i];
-                if (germ.contains(x, y) && !germ.dead) {
-                    hit = true;
-                    
-                    if (germ.type.bad) {
-                        loseHealth();
-                        const pos = germ.getScreenPosition();
-                        createExplosion(pos.x, pos.y, '#ff3b30', 25);
-                        showComboText(x, y, '💀 -1 ❤️');
-                        germs.splice(i, 1);
-                        return;
-                    }
-                    
-                    const killed = germ.hit();
-                    
-                    if (killed) {
-                        totalGermsKilled++;
-                        const result = updateScore(germ.type.points);
-                        const pos = germ.getScreenPosition();
-                        createExplosion(pos.x, pos.y, germ.type.color, 20);
-                        
-                        if (result.combo > 1) {
-                            showComboText(x, y, `🔥 COMBO x${result.combo}! +${result.points}`);
-                        } else {
-                            showComboText(x, y, `+${result.points}`);
-                        }
-                        
-                        germs.splice(i, 1);
-                    } else {
-                        const pos = germ.getScreenPosition();
-                        createExplosion(pos.x, pos.y, germ.type.color, 5);
-                        showComboText(x, y, '💥');
-                    }
-                    break;
-                }
-            }
-            
-            if (!hit) {
-                createExplosion(x, y, '#888', 3);
-                combo = 0;
-            }
-        }
-        
-        canvas.addEventListener('touchstart', handleInput, {passive: false});
-        canvas.addEventListener('mousedown', handleInput);
-        
-        // ===== GAME LOOP =====
-        let gameLoopId;
-        let timerInterval;
-        
-        function gameLoop() {
-            if (!gameRunning) return;
-            
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw world boundary indicator (subtle)
-            ctx.strokeStyle = 'rgba(76, 217, 100, 0.1)';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([5, 5]);
-            ctx.strokeRect(
-                canvas.width/2 - (WORLD_WIDTH/2 / VIEW_ANGLE_H) * (canvas.width/2),
-                canvas.height/2 - (WORLD_HEIGHT/2 / VIEW_ANGLE_V) * (canvas.height/2),
-                (WORLD_WIDTH / VIEW_ANGLE_H) * (canvas.width/2),
-                (WORLD_HEIGHT / VIEW_ANGLE_V) * (canvas.height/2)
-            );
-            ctx.setLineDash([]);
-            
-            // Update and draw germs
-            for (let i = germs.length - 1; i >= 0; i--) {
-                const germ = germs[i];
-                germ.update();
-                
-                if (germ.isVisible()) {
-                    germ.draw();
-                }
-                
-                if (germ.dead) {
-                    if (!germ.type.bad) {
-                        loseHealth();
-                    }
-                    germs.splice(i, 1);
-                }
-            }
-            
-            // Update and draw particles
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const p = particles[i];
-                p.update();
-                p.draw();
-                if (p.life <= 0) particles.splice(i, 1);
-            }
-            
-            // Update UI
-            updateRadar();
-            updateDirectionArrow();
-            
-            // Continue loop
-            gameLoopId = requestAnimationFrame(gameLoop);
-        }
-        
-        function startTimer() {
-            timerInterval = setInterval(() => {
-                if (!gameRunning) return;
-                timeLeft--;
-                timeValue.textContent = timeLeft;
-                
-                if (timeLeft <= 10) {
-                    timeValue.style.color = '#ff3b30';
-                }
-                
-                if (timeLeft <= 0) {
-                    gameOver();
-                }
-            }, 1000);
-        }
-        
-        // ===== START GAME =====
-        function startGameAfterCalibration() {
-            score = 0;
-            level = 1;
-            timeLeft = 60;
-            health = 3;
-            germs = [];
-            particles = [];
-            combo = 0;
-            lastKillTime = 0;
-            totalGermsKilled = 0;
-            maxCombo = 0;
-            gameRunning = true;
-            
-            scoreValue.textContent = '0';
-            levelValue.textContent = '1';
-            timeValue.textContent = '60';
-            timeValue.style.color = '#fff';
-            updateHealthDisplay();
-            
-            startScreen.classList.add('hidden');
-            gameOverScreen.classList.remove('active');
-            germInfo.style.display = 'flex';
-            
-            spawnGerm();
-            gameLoop();
-            startTimer();
-            
-            showToast('Berburu dimulai! Gerakkan HP untuk mencari kuman!');
-        }
-        
-        // ===== GAME OVER =====
-        function gameOver() {
-            gameRunning = false;
-            clearInterval(timerInterval);
-            cancelAnimationFrame(gameLoopId);
-            
-            finalScore.textContent = score;
-            finalStats.innerHTML = `
-                Kuman dibasmi: <span style="color:#4cd964">${totalGermsKilled}</span><br>
-                Level tertinggi: <span style="color:#4cd964">${level}</span><br>
-                Combo maksimal: <span style="color:#ffcc00">x${maxCombo}</span><br>
-                Sisa waktu: <span style="color:#4cd964">${timeLeft} detik</span>
-            `;
-            
-            gameOverScreen.classList.add('active');
-            germInfo.style.display = 'none';
-        }
-        
         // ===== BUTTON EVENTS =====
-        document.getElementById('startBtn').addEventListener('click', () => {
-            startCamera().then(() => {
-                initGyroscope();
-                calibrationScreen.classList.add('active');
-            }).catch(() => {
-                enableSimulationMode();
-                initGyroscope();
-                calibrationScreen.classList.add('active');
-            });
+        startBtn.addEventListener('click', () => {
+            if (isARSupported) {
+                startARSession();
+            }
         });
         
-        document.getElementById('simBtn').addEventListener('click', () => {
-            enableSimulationMode();
-            initGyroscope();
-            calibrationScreen.classList.add('active');
-        });
-        
-        document.getElementById('calibrateBtn').addEventListener('click', () => {
-            calibrate();
+        fallbackBtn.addEventListener('click', () => {
+            window.location.href = 'germ_hunter_ar.html'; // Redirect to gyroscope version
         });
         
         document.getElementById('restartBtn').addEventListener('click', () => {
-            calibrationScreen.classList.add('active');
             gameOverScreen.classList.remove('active');
+            startScreen.classList.remove('hidden');
         });
         
-        // ===== INITIALIZE =====
-        resizeCanvas();
+        // ===== RESIZE =====
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // ===== INIT =====
+        checkARSupport();
     </script>
 </body>
 </html>'''
 
-# Save to output
-with open('/mnt/agents/output/germ_hunter_ar.html', 'w', encoding='utf-8') as f:
+# Save WebXR version
+with open('/mnt/agents/output/germ_hunter_webxr.html', 'w', encoding='utf-8') as f:
     f.write(html_content)
 
-print("Game Germ Hunter AR berhasil dibuat!")
-print("Ukuran file:", len(html_content), "karakter")
+print("WebXR version created!")
+print("Size:", len(html_content), "characters")
