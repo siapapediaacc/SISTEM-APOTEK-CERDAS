@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Measure</title>
+    <title>Germ Hunter - Berburu Kuman!</title>
     <style>
         * {
             margin: 0;
@@ -14,6 +14,7 @@
             -webkit-tap-highlight-color: transparent;
             user-select: none;
             -webkit-user-select: none;
+            touch-action: none;
         }
 
         body {
@@ -37,8 +38,8 @@
             background: #000;
         }
 
-        /* ===== CAMERA OVERLAY (grid + crosshair) ===== */
-        .camera-overlay {
+        /* ===== SCANNER OVERLAY ===== */
+        .scanner-overlay {
             position: fixed;
             top: 0;
             left: 0;
@@ -46,500 +47,189 @@
             height: 100%;
             pointer-events: none;
             z-index: 2;
+            background: linear-gradient(
+                180deg,
+                transparent 0%,
+                rgba(0, 255, 100, 0.03) 50%,
+                transparent 100%
+            );
+            animation: scan 3s linear infinite;
         }
 
-        .grid-line-h {
-            position: absolute;
-            width: 100%;
-            height: 1px;
-            background: rgba(255,255,255,0.15);
+        @keyframes scan {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100vh); }
         }
 
-        .grid-line-v {
-            position: absolute;
-            height: 100%;
-            width: 1px;
-            background: rgba(255,255,255,0.15);
-        }
-
-        .crosshair {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 40px;
-            height: 40px;
-        }
-
-        .crosshair::before, .crosshair::after {
-            content: '';
-            position: absolute;
-            background: rgba(255,255,255,0.5);
-        }
-
-        .crosshair::before {
-            width: 1px;
-            height: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-
-        .crosshair::after {
-            height: 1px;
-            width: 100%;
-            top: 50%;
-            transform: translateY(-50%);
-        }
-
-        /* ===== MEASUREMENT CANVAS ===== */
-        #measureCanvas {
+        .grid-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 3;
-            touch-action: none;
+            pointer-events: none;
+            z-index: 2;
+            background-image: 
+                linear-gradient(rgba(0, 255, 100, 0.08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 100, 0.08) 1px, transparent 1px);
+            background-size: 50px 50px;
         }
 
-        /* ===== TOP BAR ===== */
-        .top-bar {
+        /* ===== HUD ===== */
+        .hud {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
-            height: 50px;
-            background: rgba(0,0,0,0.5);
+            padding: 15px 20px;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.5);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 15px;
-            z-index: 100;
         }
 
-        .top-btn {
-            color: #ffcc00;
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-            padding: 8px 12px;
-            border-radius: 8px;
-        }
-
-        .top-btn:active {
-            background: rgba(255,255,255,0.1);
-        }
-
-        .top-title {
-            color: #fff;
-            font-size: 17px;
-            font-weight: 600;
-        }
-
-        /* ===== MEASUREMENT DISPLAY ===== */
-        .measure-display {
-            position: fixed;
-            top: 60px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
-            border-radius: 12px;
-            padding: 12px 24px;
+        .hud-item {
             text-align: center;
-            z-index: 100;
-            min-width: 200px;
-            display: none;
         }
 
-        .measure-value {
-            font-size: 32px;
-            font-weight: 600;
-            color: #ffcc00;
-            letter-spacing: -0.5px;
+        .hud-label {
+            font-size: 11px;
+            color: #4cd964;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 2px;
         }
 
-        .measure-unit {
-            font-size: 14px;
-            color: #aaa;
-            margin-top: 2px;
+        .hud-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #fff;
         }
 
-        /* ===== BOTTOM CONTROLS ===== */
-        .bottom-controls {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            padding-bottom: env(safe-area-inset-bottom, 20px);
-            padding-top: 15px;
-            z-index: 100;
-        }
-
-        .tab-bar {
+        .hud-health {
             display: flex;
-            justify-content: center;
-            gap: 8px;
-            margin-bottom: 15px;
+            gap: 3px;
         }
 
-        .tab-btn {
-            padding: 8px 24px;
-            border-radius: 20px;
-            font-size: 15px;
-            font-weight: 500;
-            color: #888;
-            background: transparent;
-            border: none;
-            cursor: pointer;
+        .health-heart {
+            font-size: 20px;
             transition: all 0.3s;
         }
 
-        .tab-btn.active {
-            background: #333;
-            color: #fff;
+        .health-heart.lost {
+            opacity: 0.2;
+            filter: grayscale(1);
         }
 
-        .action-buttons {
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            padding: 0 30px 20px;
-        }
-
-        .action-btn {
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            border: 2px solid rgba(255,255,255,0.3);
-            background: transparent;
-            color: #fff;
-            font-size: 13px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            transition: all 0.2s;
-        }
-
-        .action-btn:active {
-            background: rgba(255,255,255,0.1);
-        }
-
-        .action-btn.shutter {
-            width: 72px;
-            height: 72px;
-            border: 3px solid #fff;
-            background: transparent;
-            position: relative;
-        }
-
-        .action-btn.shutter::after {
-            content: '';
-            width: 58px;
-            height: 58px;
-            border-radius: 50%;
-            background: #fff;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            transition: all 0.2s;
-        }
-
-        .action-btn.shutter:active::after {
-            transform: translate(-50%, -50%) scale(0.9);
-        }
-
-        .action-btn.clear-btn {
-            font-size: 11px;
-        }
-
-        /* ===== LEVEL VIEW ===== */
-        .level-view {
-            display: none;
+        /* ===== GAME CANVAS ===== */
+        #gameCanvas {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: #000;
-            z-index: 50;
+            z-index: 10;
+            cursor: crosshair;
+        }
+
+        /* ===== START SCREEN ===== */
+        .start-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 500;
+            display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            padding: 40px;
+            text-align: center;
         }
 
-        .level-view.active {
-            display: flex;
+        .start-screen.hidden {
+            display: none;
         }
 
-        .level-circle {
-            width: 280px;
-            height: 280px;
-            border-radius: 50%;
-            border: 3px solid #333;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
+        .game-logo {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
         }
 
-        .level-bubble {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: #ffcc00;
-            position: absolute;
-            transition: all 0.1s ease-out;
-            box-shadow: 0 0 20px rgba(255,204,0,0.5);
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
         }
 
-        .level-bubble.centered {
-            background: #4cd964;
-            box-shadow: 0 0 30px rgba(76,217,100,0.6);
+        .game-title {
+            font-size: 32px;
+            font-weight: 800;
+            color: #4cd964;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(76, 217, 100, 0.5);
         }
 
-        .level-cross {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-
-        .level-cross::before, .level-cross::after {
-            content: '';
-            position: absolute;
-            background: rgba(255,255,255,0.2);
-        }
-
-        .level-cross::before {
-            width: 1px;
-            height: 100%;
-            left: 50%;
-        }
-
-        .level-cross::after {
-            height: 1px;
-            width: 100%;
-            top: 50%;
-        }
-
-        .level-value {
-            margin-top: 40px;
-            font-size: 48px;
-            font-weight: 300;
-            color: #fff;
-        }
-
-        .level-label {
-            margin-top: 10px;
+        .game-subtitle {
             font-size: 16px;
             color: #888;
-            text-align: center;
-            padding: 0 20px;
+            margin-bottom: 40px;
         }
 
-        /* ===== HISTORY PANEL ===== */
-        .history-panel {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.95);
-            z-index: 200;
-            flex-direction: column;
-        }
-
-        .history-panel.active {
-            display: flex;
-        }
-
-        .history-header {
-            padding: 50px 20px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #333;
-        }
-
-        .history-title {
-            font-size: 22px;
-            font-weight: 600;
-        }
-
-        .history-close {
-            color: #ffcc00;
-            font-size: 16px;
-            cursor: pointer;
-            padding: 8px;
-        }
-
-        .history-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px 20px;
-        }
-
-        .history-item {
-            padding: 15px;
-            border-bottom: 1px solid #222;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .history-item-value {
+        .start-btn {
+            background: #4cd964;
+            color: #000;
+            border: none;
+            padding: 18px 50px;
+            border-radius: 30px;
             font-size: 20px;
-            font-weight: 500;
-            color: #ffcc00;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 0 30px rgba(76, 217, 100, 0.4);
         }
 
-        .history-item-date {
-            font-size: 12px;
+        .start-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 40px rgba(76, 217, 100, 0.6);
+        }
+
+        .start-btn:active {
+            transform: scale(0.95);
+        }
+
+        .camera-permission-text {
+            font-size: 14px;
+            color: #888;
+            margin-top: 20px;
+            line-height: 1.5;
+        }
+
+        .simulation-btn {
+            background: transparent;
             color: #666;
-            margin-top: 4px;
-        }
-
-        .history-item-delete {
-            color: #ff3b30;
+            border: 1px solid #333;
+            padding: 12px 30px;
+            border-radius: 20px;
             font-size: 14px;
             cursor: pointer;
-            padding: 5px 10px;
+            margin-top: 15px;
         }
 
-        .history-empty {
-            text-align: center;
-            color: #666;
-            padding: 60px 20px;
-            font-size: 16px;
-        }
-
-        /* ===== INSTRUCTION ===== */
-        .instruction {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            color: rgba(255,255,255,0.7);
-            font-size: 16px;
-            pointer-events: none;
-            z-index: 5;
-            transition: opacity 0.5s;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
-        }
-
-        .instruction.hidden {
-            opacity: 0;
-        }
-
-        .instruction-icon {
-            font-size: 50px;
-            margin-bottom: 15px;
-        }
-
-        /* ===== TOAST ===== */
-        .toast {
-            position: fixed;
-            bottom: 150px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(255,255,255,0.9);
-            color: #000;
-            padding: 12px 24px;
-            border-radius: 25px;
-            font-size: 14px;
-            font-weight: 500;
-            z-index: 300;
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-            white-space: nowrap;
-        }
-
-        .toast.show {
-            opacity: 1;
-        }
-
-        /* ===== UNIT SELECTOR ===== */
-        .unit-selector {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: #1c1c1e;
-            border-radius: 16px;
-            padding: 20px;
-            z-index: 300;
-            display: none;
-            min-width: 250px;
-        }
-
-        .unit-selector.active {
-            display: block;
-        }
-
-        .unit-selector-title {
-            text-align: center;
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 15px;
-        }
-
-        .unit-option {
-            padding: 15px;
-            text-align: center;
-            border-radius: 10px;
-            margin: 5px 0;
-            cursor: pointer;
-            font-size: 16px;
-        }
-
-        .unit-option:hover {
-            background: #333;
-        }
-
-        .unit-option.selected {
-            background: #ffcc00;
-            color: #000;
-            font-weight: 600;
-        }
-
-        .overlay {
+        /* ===== GAME OVER SCREEN ===== */
+        .game-over-screen {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.7);
-            z-index: 250;
-            display: none;
-        }
-
-        .overlay.active {
-            display: block;
-        }
-
-        /* ===== CAMERA ERROR / PERMISSION ===== */
-        .camera-permission {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #000;
-            z-index: 400;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 500;
             display: none;
             flex-direction: column;
             align-items: center;
@@ -548,685 +238,803 @@
             text-align: center;
         }
 
-        .camera-permission.active {
+        .game-over-screen.active {
             display: flex;
         }
 
-        .camera-permission-icon {
+        .game-over-icon {
             font-size: 60px;
             margin-bottom: 20px;
         }
 
-        .camera-permission-title {
-            font-size: 22px;
-            font-weight: 600;
+        .game-over-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #ff3b30;
             margin-bottom: 10px;
         }
 
-        .camera-permission-text {
-            font-size: 15px;
-            color: #888;
-            line-height: 1.5;
-            margin-bottom: 30px;
+        .game-over-score {
+            font-size: 48px;
+            font-weight: 800;
+            color: #4cd964;
+            margin: 20px 0;
         }
 
-        .camera-permission-btn {
-            background: #ffcc00;
+        .game-over-stats {
+            font-size: 16px;
+            color: #888;
+            margin-bottom: 30px;
+            line-height: 1.8;
+        }
+
+        .restart-btn {
+            background: #4cd964;
             color: #000;
             border: none;
-            padding: 15px 40px;
+            padding: 16px 40px;
             border-radius: 25px;
-            font-size: 16px;
-            font-weight: 600;
+            font-size: 18px;
+            font-weight: 700;
             cursor: pointer;
         }
 
-        .camera-permission-btn:active {
-            transform: scale(0.95);
+        /* ===== LEVEL UP NOTIFICATION ===== */
+        .level-up {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: rgba(76, 217, 100, 0.9);
+            color: #000;
+            padding: 20px 40px;
+            border-radius: 15px;
+            font-size: 24px;
+            font-weight: 700;
+            z-index: 300;
+            transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            pointer-events: none;
         }
 
-        /* ===== CAMERA SWITCH ===== */
-        .camera-switch {
+        .level-up.show {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        /* ===== COMBO TEXT ===== */
+        .combo-text {
             position: fixed;
-            top: 60px;
+            font-size: 36px;
+            font-weight: 800;
+            color: #ffcc00;
+            text-shadow: 0 0 20px rgba(255, 204, 0, 0.8);
+            z-index: 200;
+            pointer-events: none;
+            animation: comboFloat 1s ease-out forwards;
+        }
+
+        @keyframes comboFloat {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-80px) scale(1.5); }
+        }
+
+        /* ===== TOAST ===== */
+        .toast {
+            position: fixed;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            color: #000;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 300;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        /* ===== PAUSE BUTTON ===== */
+        .pause-btn {
+            position: fixed;
+            top: 15px;
             right: 15px;
             z-index: 100;
-            width: 44px;
-            height: 44px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(10px);
-            border: none;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.3);
             color: #fff;
-            font-size: 20px;
+            font-size: 16px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
         }
 
-        .camera-switch:active {
-            background: rgba(255,255,255,0.2);
+        /* ===== GERM TYPES INFO ===== */
+        .germ-info {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            display: flex;
+            gap: 15px;
+            opacity: 0.7;
+        }
+
+        .germ-type {
+            text-align: center;
+            font-size: 11px;
+        }
+
+        .germ-type-icon {
+            font-size: 24px;
+        }
+
+        .germ-type-points {
+            color: #4cd964;
+            font-weight: 600;
         }
     </style>
 </head>
 <body>
-    <!-- Camera Video Element -->
+    <!-- Camera Video -->
     <video id="cameraVideo" autoplay playsinline muted></video>
 
-    <!-- Camera Overlay (Grid + Crosshair) -->
-    <div class="camera-overlay">
-        <div class="grid-line-h" style="top: 33%"></div>
-        <div class="grid-line-h" style="top: 66%"></div>
-        <div class="grid-line-v" style="left: 33%"></div>
-        <div class="grid-line-v" style="left: 66%"></div>
-        <div class="crosshair"></div>
+    <!-- Scanner Effects -->
+    <div class="scanner-overlay"></div>
+    <div class="grid-overlay"></div>
+
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD -->
+    <div class="hud">
+        <div class="hud-item">
+            <div class="hud-label">Skor</div>
+            <div class="hud-value" id="scoreValue">0</div>
+        </div>
+        <div class="hud-item">
+            <div class="hud-label">Level</div>
+            <div class="hud-value" id="levelValue">1</div>
+        </div>
+        <div class="hud-item">
+            <div class="hud-label">Waktu</div>
+            <div class="hud-value" id="timeValue">60</div>
+        </div>
+        <div class="hud-item">
+            <div class="hud-label">Nyawa</div>
+            <div class="hud-health" id="healthValue">
+                <span class="health-heart">❤️</span>
+                <span class="health-heart">❤️</span>
+                <span class="health-heart">❤️</span>
+            </div>
+        </div>
     </div>
 
-    <!-- Canvas for drawing measurements -->
-    <canvas id="measureCanvas"></canvas>
+    <!-- Pause Button -->
+    <button class="pause-btn" id="pauseBtn">⏸</button>
 
-    <!-- Instruction -->
-    <div class="instruction" id="instruction">
-        <div class="instruction-icon">📏</div>
-        <div>Ketuk layar untuk menambahkan titik</div>
-        <div style="font-size: 13px; margin-top: 8px; color: rgba(255,255,255,0.5);">Geser titik untuk menyesuaikan</div>
+    <!-- Germ Types Info -->
+    <div class="germ-info" id="germInfo">
+        <div class="germ-type">
+            <div class="germ-type-icon">🦠</div>
+            <div class="germ-type-points">+10</div>
+        </div>
+        <div class="germ-type">
+            <div class="germ-type-icon">🧟</div>
+            <div class="germ-type-points">+25</div>
+        </div>
+        <div class="germ-type">
+            <div class="germ-type-icon">👾</div>
+            <div class="germ-type-points">+50</div>
+        </div>
+        <div class="germ-type">
+            <div class="germ-type-icon">💀</div>
+            <div class="germ-type-points">-1 ❤️</div>
+        </div>
     </div>
 
-    <!-- Camera Permission Screen -->
-    <div class="camera-permission" id="cameraPermission">
-        <div class="camera-permission-icon">📷</div>
-        <div class="camera-permission-title">Akses Kamera Diperlukan</div>
+    <!-- Start Screen -->
+    <div class="start-screen" id="startScreen">
+        <div class="game-logo">🦠</div>
+        <div class="game-title">GERM HUNTER</div>
+        <div class="game-subtitle">Berburu Kuman di Dunia Nyata!</div>
+        <button class="start-btn" id="startBtn">MULAI BERBURU!</button>
         <div class="camera-permission-text">
-            Aplikasi Measure memerlukan akses kamera untuk mengukur objek secara nyata. 
-            Data kamera hanya digunakan di perangkat Anda dan tidak diunggah ke server.
+            Aplikasi ini memerlukan akses kamera.<br>
+            Kuman-kuman virtual akan muncul di layar Anda!<br>
+            Ketuk untuk membasmi mereka!
         </div>
-        <button class="camera-permission-btn" id="grantCameraBtn">Izinkan Kamera</button>
-        <div style="margin-top: 15px; font-size: 13px; color: #666;">
-            atau gunakan mode simulasi
-        </div>
-        <button class="camera-permission-btn" id="simulationBtn" style="margin-top: 10px; background: #333; color: #fff;">
-            Mode Simulasi
-        </button>
+        <button class="simulation-btn" id="simBtn">Mode Tanpa Kamera</button>
     </div>
 
-    <!-- Top Bar -->
-    <div class="top-bar">
-        <div class="top-btn" id="historyBtn">Riwayat</div>
-        <div class="top-title">Measure</div>
-        <div class="top-btn" id="unitBtn">cm</div>
+    <!-- Game Over Screen -->
+    <div class="game-over-screen" id="gameOverScreen">
+        <div class="game-over-icon">🧼</div>
+        <div class="game-over-title">BERSIH SELESAI!</div>
+        <div class="game-over-score" id="finalScore">0</div>
+        <div class="game-over-stats" id="finalStats"></div>
+        <button class="restart-btn" id="restartBtn">BERBURU LAGI!</button>
     </div>
 
-    <!-- Camera Switch Button -->
-    <button class="camera-switch" id="cameraSwitchBtn" title="Ganti Kamera">🔄</button>
-
-    <!-- Measurement Display -->
-    <div class="measure-display" id="measureDisplay">
-        <div class="measure-value" id="measureValue">0.00</div>
-        <div class="measure-unit" id="measureUnit">cm</div>
-    </div>
-
-    <!-- Bottom Controls -->
-    <div class="bottom-controls">
-        <div class="tab-bar">
-            <button class="tab-btn active" data-tab="measure">Measure</button>
-            <button class="tab-btn" data-tab="level">Level</button>
-        </div>
-        <div class="action-buttons">
-            <button class="action-btn clear-btn" id="clearBtn">
-                <span>Hapus</span>
-            </button>
-            <button class="action-btn shutter" id="shutterBtn"></button>
-            <button class="action-btn" id="undoBtn">
-                <span>Undo</span>
-            </button>
-        </div>
-    </div>
-
-    <!-- Level View -->
-    <div class="level-view" id="levelView">
-        <div class="level-circle">
-            <div class="level-cross"></div>
-            <div class="level-bubble" id="levelBubble"></div>
-        </div>
-        <div class="level-value" id="levelValue">0°</div>
-        <div class="level-label">Geser perangkat untuk melihat kemiringan</div>
-    </div>
-
-    <!-- History Panel -->
-    <div class="history-panel" id="historyPanel">
-        <div class="history-header">
-            <div class="history-title">Riwayat Pengukuran</div>
-            <div class="history-close" id="historyClose">Selesai</div>
-        </div>
-        <div class="history-list" id="historyList">
-            <div class="history-empty">Belum ada pengukuran</div>
-        </div>
-    </div>
-
-    <!-- Unit Selector -->
-    <div class="overlay" id="overlay"></div>
-    <div class="unit-selector" id="unitSelector">
-        <div class="unit-selector-title">Pilih Satuan</div>
-        <div class="unit-option selected" data-unit="cm">Sentimeter (cm)</div>
-        <div class="unit-option" data-unit="m">Meter (m)</div>
-        <div class="unit-option" data-unit="in">Inci (in)</div>
-        <div class="unit-option" data-unit="ft">Kaki (ft)</div>
-    </div>
+    <!-- Level Up -->
+    <div class="level-up" id="levelUp">LEVEL UP!</div>
 
     <!-- Toast -->
     <div class="toast" id="toast"></div>
 
     <script>
-        // ===== STATE =====
-        let points = [];
-        let currentUnit = 'cm';
-        let currentTab = 'measure';
-        let isDragging = false;
-        let dragPointIndex = -1;
-        let history = JSON.parse(localStorage.getItem('measureHistory') || '[]');
+        // ===== GAME STATE =====
+        let score = 0;
+        let level = 1;
+        let timeLeft = 60;
+        let health = 3;
+        let gameRunning = false;
+        let germs = [];
+        let particles = [];
+        let combo = 0;
+        let lastKillTime = 0;
+        let totalGermsKilled = 0;
+        let maxCombo = 0;
         let cameraStream = null;
-        let currentFacingMode = 'environment'; // 'environment' = rear, 'user' = front
         let isSimulationMode = false;
 
         // ===== DOM ELEMENTS =====
         const video = document.getElementById('cameraVideo');
-        const canvas = document.getElementById('measureCanvas');
+        const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const measureDisplay = document.getElementById('measureDisplay');
-        const measureValue = document.getElementById('measureValue');
-        const measureUnit = document.getElementById('measureUnit');
-        const instruction = document.getElementById('instruction');
-        const levelView = document.getElementById('levelView');
-        const levelBubble = document.getElementById('levelBubble');
+        const scoreValue = document.getElementById('scoreValue');
         const levelValue = document.getElementById('levelValue');
-        const historyPanel = document.getElementById('historyPanel');
-        const historyList = document.getElementById('historyList');
-        const unitSelector = document.getElementById('unitSelector');
-        const overlay = document.getElementById('overlay');
+        const timeValue = document.getElementById('timeValue');
+        const healthValue = document.getElementById('healthValue');
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const finalScore = document.getElementById('finalScore');
+        const finalStats = document.getElementById('finalStats');
+        const levelUp = document.getElementById('levelUp');
         const toast = document.getElementById('toast');
-        const cameraPermission = document.getElementById('cameraPermission');
-        const cameraSwitchBtn = document.getElementById('cameraSwitchBtn');
+        const germInfo = document.getElementById('germInfo');
 
         // ===== CANVAS SETUP =====
         function resizeCanvas() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            draw();
         }
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
         // ===== CAMERA SETUP =====
-        async function startCamera(facingMode = 'environment') {
+        async function startCamera() {
             try {
-                // Stop existing stream
                 if (cameraStream) {
                     cameraStream.getTracks().forEach(track => track.stop());
                 }
-
                 const constraints = {
-                    video: {
-                        facingMode: { ideal: facingMode },
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 }
-                    },
+                    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
                     audio: false
                 };
-
                 cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = cameraStream;
-
-                video.onloadedmetadata = () => {
-                    video.play();
-                    showToast('Kamera aktif');
-                };
-
-                cameraPermission.classList.remove('active');
-                isSimulationMode = false;
-
+                video.onloadedmetadata = () => video.play();
             } catch (err) {
                 console.error('Camera error:', err);
-                if (err.name === 'NotAllowedError') {
-                    showToast('Izin kamera ditolak. Gunakan mode simulasi.');
-                    enableSimulationMode();
-                } else if (err.name === 'NotFoundError') {
-                    showToast('Kamera tidak ditemukan. Gunakan mode simulasi.');
-                    enableSimulationMode();
-                } else {
-                    showToast('Error kamera: ' + err.message);
-                    enableSimulationMode();
-                }
+                enableSimulationMode();
             }
         }
 
         function enableSimulationMode() {
             isSimulationMode = true;
-            cameraPermission.classList.remove('active');
             video.style.display = 'none';
-            document.querySelector('.camera-overlay').style.display = 'none';
+            document.querySelector('.scanner-overlay').style.display = 'none';
+            document.querySelector('.grid-overlay').style.display = 'none';
 
-            // Create simulation background
             const simBg = document.createElement('div');
-            simBg.id = 'simulationBg';
+            simBg.id = 'simBg';
             simBg.style.cssText = `
-                position: fixed;
-                top: 0; left: 0;
-                width: 100%; height: 100%;
-                background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: linear-gradient(135deg, #0a1628 0%, #1a2f4a 50%, #0d2137 100%);
                 z-index: 1;
             `;
             document.body.insertBefore(simBg, video);
 
-            showToast('Mode simulasi aktif');
+            // Add animated particles to simulation background
+            const particleBg = document.createElement('div');
+            particleBg.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                z-index: 1; pointer-events: none;
+                background-image: radial-gradient(circle at 20% 50%, rgba(76, 217, 100, 0.1) 0%, transparent 50%),
+                                  radial-gradient(circle at 80% 80%, rgba(0, 200, 255, 0.1) 0%, transparent 50%),
+                                  radial-gradient(circle at 40% 20%, rgba(255, 200, 0, 0.05) 0%, transparent 50%);
+            `;
+            document.body.insertBefore(particleBg, video);
         }
 
-        function switchCamera() {
-            currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
-            startCamera(currentFacingMode);
-        }
+        // ===== GERM TYPES =====
+        const germTypes = [
+            { emoji: '🦠', points: 10, speed: 1, size: 40, health: 1, color: '#4cd964', name: 'Bacteria' },
+            { emoji: '🧟', points: 25, speed: 1.5, size: 50, health: 2, color: '#ff9500', name: 'Virus' },
+            { emoji: '👾', points: 50, speed: 2, size: 55, health: 3, color: '#ff2d55', name: 'Superbug' },
+            { emoji: '💀', points: -50, speed: 2.5, size: 45, health: 1, color: '#ff3b30', name: 'Toxic', bad: true }
+        ];
 
-        // Check if camera permission already granted
-        async function checkCameraPermission() {
-            try {
-                const permission = await navigator.permissions.query({ name: 'camera' });
-                if (permission.state === 'granted') {
-                    startCamera();
-                } else {
-                    cameraPermission.classList.add('active');
+        // ===== GERMS CLASS =====
+        class Germ {
+            constructor() {
+                const type = this.selectType();
+                this.type = type;
+                this.x = Math.random() * (canvas.width - 100) + 50;
+                this.y = Math.random() * (canvas.height - 200) + 100;
+                this.targetX = this.x;
+                this.targetY = this.y;
+                this.size = type.size;
+                this.speed = type.speed * (1 + level * 0.1);
+                this.health = type.health;
+                this.maxHealth = type.health;
+                this.angle = 0;
+                this.wobble = Math.random() * Math.PI * 2;
+                this.wobbleSpeed = 0.05 + Math.random() * 0.05;
+                this.lifeTime = 0;
+                this.maxLifeTime = 800 + Math.random() * 400;
+                this.scale = 0;
+                this.scaleTarget = 1;
+                this.dead = false;
+                this.pulsePhase = 0;
+
+                // Movement
+                this.vx = (Math.random() - 0.5) * this.speed;
+                this.vy = (Math.random() - 0.5) * this.speed;
+                this.changeDirTimer = 0;
+                this.changeDirInterval = 60 + Math.random() * 60;
+            }
+
+            selectType() {
+                const rand = Math.random();
+                if (rand < 0.5) return germTypes[0]; // 50% Bacteria
+                if (rand < 0.75) return germTypes[1]; // 25% Virus
+                if (rand < 0.9) return germTypes[2]; // 15% Superbug
+                return germTypes[3]; // 10% Toxic
+            }
+
+            update() {
+                this.lifeTime++;
+                this.wobble += this.wobbleSpeed;
+                this.pulsePhase += 0.1;
+
+                // Spawn animation
+                if (this.scale < this.scaleTarget) {
+                    this.scale += 0.1;
+                    if (this.scale > this.scaleTarget) this.scale = this.scaleTarget;
                 }
-            } catch (e) {
-                // Fallback: try to start camera directly
-                startCamera().catch(() => {
-                    cameraPermission.classList.add('active');
-                });
+
+                // Movement
+                this.changeDirTimer++;
+                if (this.changeDirTimer >= this.changeDirInterval) {
+                    this.vx = (Math.random() - 0.5) * this.speed;
+                    this.vy = (Math.random() - 0.5) * this.speed;
+                    this.changeDirTimer = 0;
+                }
+
+                this.x += this.vx + Math.sin(this.wobble) * 0.5;
+                this.y += this.vy + Math.cos(this.wobble) * 0.5;
+
+                // Bounce off edges
+                if (this.x < this.size) { this.x = this.size; this.vx *= -1; }
+                if (this.x > canvas.width - this.size) { this.x = canvas.width - this.size; this.vx *= -1; }
+                if (this.y < this.size + 80) { this.y = this.size + 80; this.vy *= -1; }
+                if (this.y > canvas.height - this.size - 100) { this.y = canvas.height - this.size - 100; this.vy *= -1; }
+
+                // Die if lifetime exceeded
+                if (this.lifeTime > this.maxLifeTime && !this.type.bad) {
+                    this.dead = true;
+                    if (!this.type.bad) {
+                        loseHealth();
+                    }
+                }
+
+                this.angle += 0.02;
             }
-        }
 
-        // Initialize camera on load
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            checkCameraPermission();
-        } else {
-            cameraPermission.classList.add('active');
-            document.querySelector('.camera-permission-text').textContent = 
-                'Browser Anda tidak mendukung akses kamera. Gunakan Chrome, Safari, atau Edge terbaru.';
-            document.getElementById('grantCameraBtn').style.display = 'none';
-        }
-
-        // Camera permission buttons
-        document.getElementById('grantCameraBtn').addEventListener('click', () => {
-            startCamera();
-        });
-
-        document.getElementById('simulationBtn').addEventListener('click', () => {
-            enableSimulationMode();
-        });
-
-        // Camera switch button
-        cameraSwitchBtn.addEventListener('click', () => {
-            if (!isSimulationMode && cameraStream) {
-                switchCamera();
-            }
-        });
-
-        // ===== DRAWING =====
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Draw lines
-            for (let i = 0; i < points.length - 1; i++) {
-                const p1 = points[i];
-                const p2 = points[i + 1];
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.scale(this.scale, this.scale);
 
                 // Glow effect
+                const glowSize = this.size * 1.5 + Math.sin(this.pulsePhase) * 5;
+                const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, glowSize);
+                gradient.addColorStop(0, this.type.color + '40');
+                gradient.addColorStop(1, 'transparent');
+                ctx.fillStyle = gradient;
                 ctx.beginPath();
-                ctx.moveTo(p1.x, p1.y);
-                ctx.lineTo(p2.x, p2.y);
-                ctx.strokeStyle = 'rgba(255, 204, 0, 0.3)';
-                ctx.lineWidth = 8;
-                ctx.lineCap = 'round';
-                ctx.stroke();
-
-                // Main line
-                ctx.beginPath();
-                ctx.moveTo(p1.x, p1.y);
-                ctx.lineTo(p2.x, p2.y);
-                ctx.strokeStyle = '#ffcc00';
-                ctx.lineWidth = 3;
-                ctx.lineCap = 'round';
-                ctx.stroke();
-
-                // Measurement label on line
-                const midX = (p1.x + p2.x) / 2;
-                const midY = (p1.y + p2.y) / 2;
-                const dist = getDistance(p1, p2);
-                const converted = convertDistance(dist);
-
-                // Label background
-                const text = converted.value.toFixed(2) + ' ' + converted.unit;
-                ctx.font = 'bold 14px -apple-system, sans-serif';
-                const textWidth = ctx.measureText(text).width;
-
-                ctx.fillStyle = 'rgba(0,0,0,0.85)';
-                ctx.beginPath();
-                ctx.roundRect(midX - textWidth/2 - 10, midY - 14, textWidth + 20, 28, 8);
+                ctx.arc(0, 0, glowSize, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Label text
-                ctx.fillStyle = '#ffcc00';
+                // Health ring for multi-health germs
+                if (this.maxHealth > 1) {
+                    ctx.strokeStyle = this.type.color + '60';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.size * 0.7, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    // Health indicator
+                    const healthAngle = (this.health / this.maxHealth) * Math.PI * 2;
+                    ctx.strokeStyle = this.type.color;
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.size * 0.7, -Math.PI / 2, -Math.PI / 2 + healthAngle);
+                    ctx.stroke();
+                }
+
+                // Main body
+                ctx.font = `${this.size}px Arial`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(text, midX, midY);
+                ctx.fillText(this.type.emoji, 0, 0);
+
+                // Wobble rotation for effect
+                ctx.rotate(Math.sin(this.wobble) * 0.2);
+
+                // Points indicator for bad germs
+                if (this.type.bad) {
+                    ctx.fillStyle = '#ff3b30';
+                    ctx.font = 'bold 12px Arial';
+                    ctx.fillText('JANGAN!', 0, -this.size * 0.8);
+                }
+
+                ctx.restore();
             }
 
-            // Draw points
-            points.forEach((point, index) => {
-                // Outer glow
+            hit() {
+                this.health--;
+                if (this.health <= 0) {
+                    this.dead = true;
+                    return true; // Killed
+                }
+                // Hit effect - flash
+                this.scale = 1.3;
+                setTimeout(() => { this.scale = 1; }, 100);
+                return false;
+            }
+
+            contains(x, y) {
+                const dist = Math.sqrt((x - this.x) ** 2 + (y - this.y) ** 2);
+                return dist < this.size;
+            }
+        }
+
+        // ===== PARTICLE SYSTEM =====
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 8;
+                this.vy = (Math.random() - 0.5) * 8;
+                this.life = 1;
+                this.decay = 0.02 + Math.random() * 0.03;
+                this.size = 3 + Math.random() * 5;
+                this.color = color;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.2; // Gravity
+                this.life -= this.decay;
+            }
+
+            draw() {
+                ctx.globalAlpha = this.life;
+                ctx.fillStyle = this.color;
                 ctx.beginPath();
-                ctx.arc(point.x, point.y, 16, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255, 204, 0, 0.2)';
+                ctx.arc(this.x, this.y, this.size * this.life, 0, Math.PI * 2);
                 ctx.fill();
-
-                // Outer circle
-                ctx.beginPath();
-                ctx.arc(point.x, point.y, 12, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255, 204, 0, 0.4)';
-                ctx.fill();
-
-                // Inner circle
-                ctx.beginPath();
-                ctx.arc(point.x, point.y, 8, 0, Math.PI * 2);
-                ctx.fillStyle = '#ffcc00';
-                ctx.fill();
-
-                // White border
-                ctx.beginPath();
-                ctx.arc(point.x, point.y, 8, 0, Math.PI * 2);
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-
-                // Point label
-                ctx.fillStyle = '#fff';
-                ctx.font = 'bold 12px -apple-system, sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText(index + 1, point.x, point.y + 4);
-            });
-
-            // Update display
-            updateDisplay();
-        }
-
-        function getDistance(p1, p2) {
-            return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
-        }
-
-        function convertDistance(pixels) {
-            // Calibration: 100 pixels ≈ 2.54 cm (1 inch) pada layar mobile
-            const cm = (pixels / 100) * 2.54;
-
-            switch(currentUnit) {
-                case 'cm': return { value: cm, unit: 'cm' };
-                case 'm': return { value: cm / 100, unit: 'm' };
-                case 'in': return { value: pixels / 100, unit: 'in' };
-                case 'ft': return { value: (pixels / 100) / 12, unit: 'ft' };
-                default: return { value: cm, unit: 'cm' };
+                ctx.globalAlpha = 1;
             }
         }
 
-        function updateDisplay() {
-            if (points.length >= 2) {
-                let totalPixels = 0;
-                for (let i = 0; i < points.length - 1; i++) {
-                    totalPixels += getDistance(points[i], points[i + 1]);
-                }
-                const converted = convertDistance(totalPixels);
-                measureValue.textContent = converted.value.toFixed(2);
-                measureUnit.textContent = converted.unit;
-                measureDisplay.style.display = 'block';
+        // ===== EXPLOSION EFFECT =====
+        function createExplosion(x, y, color, count = 15) {
+            for (let i = 0; i < count; i++) {
+                particles.push(new Particle(x, y, color));
+            }
+        }
+
+        // ===== COMBO TEXT =====
+        function showComboText(x, y, text) {
+            const el = document.createElement('div');
+            el.className = 'combo-text';
+            el.textContent = text;
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 1000);
+        }
+
+        // ===== GAME FUNCTIONS =====
+        function spawnGerm() {
+            if (!gameRunning) return;
+            const maxGerms = 3 + level * 2;
+            if (germs.length < maxGerms) {
+                germs.push(new Germ());
+            }
+            // Spawn rate decreases as level increases
+            const spawnDelay = Math.max(500, 2000 - level * 200);
+            setTimeout(spawnGerm, spawnDelay);
+        }
+
+        function loseHealth() {
+            health--;
+            updateHealthDisplay();
+
+            // Screen shake effect
+            canvas.style.transform = 'translate(5px, 5px)';
+            setTimeout(() => canvas.style.transform = 'translate(-5px, -5px)', 50);
+            setTimeout(() => canvas.style.transform = 'translate(0, 0)', 100);
+
+            if (health <= 0) {
+                gameOver();
             } else {
-                measureDisplay.style.display = 'none';
+                showToast(`Kuman lolos! Nyawa tersisa: ${health}`);
             }
         }
 
-        // ===== TOUCH/MOUSE HANDLING =====
-        function getPoint(e) {
-            const rect = canvas.getBoundingClientRect();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            return {
-                x: clientX - rect.left,
-                y: clientY - rect.top
-            };
-        }
-
-        function findNearestPoint(pos) {
-            for (let i = 0; i < points.length; i++) {
-                const dist = Math.sqrt(Math.pow(pos.x - points[i].x, 2) + Math.pow(pos.y - points[i].y, 2));
-                if (dist < 30) return i;
+        function updateHealthDisplay() {
+            let hearts = '';
+            for (let i = 0; i < 3; i++) {
+                hearts += `<span class="health-heart ${i >= health ? 'lost' : ''}">❤️</span>`;
             }
-            return -1;
+            healthValue.innerHTML = hearts;
         }
 
-        canvas.addEventListener('touchstart', handleStart, {passive: false});
-        canvas.addEventListener('mousedown', handleStart);
-
-        function handleStart(e) {
-            if (currentTab !== 'measure') return;
-            e.preventDefault();
-
-            const pos = getPoint(e);
-            const nearest = findNearestPoint(pos);
-
-            if (nearest !== -1) {
-                isDragging = true;
-                dragPointIndex = nearest;
+        function updateScore(points) {
+            const now = Date.now();
+            if (now - lastKillTime < 1500) {
+                combo++;
+                if (combo > maxCombo) maxCombo = combo;
             } else {
-                points.push(pos);
-                instruction.classList.add('hidden');
+                combo = 1;
+            }
+            lastKillTime = now;
+
+            const comboMultiplier = Math.min(combo, 5);
+            const finalPoints = points * comboMultiplier;
+            score += finalPoints;
+
+            scoreValue.textContent = score;
+
+            // Level up check
+            const newLevel = Math.floor(score / 200) + 1;
+            if (newLevel > level) {
+                level = newLevel;
+                levelValue.textContent = level;
+                showLevelUp();
+                timeLeft += 15; // Bonus time
+                showToast(`Level ${level}! Bonus waktu +15 detik!`);
             }
 
-            draw();
+            return { combo: comboMultiplier, points: finalPoints };
         }
 
-        canvas.addEventListener('touchmove', handleMove, {passive: false});
-        canvas.addEventListener('mousemove', handleMove);
-
-        function handleMove(e) {
-            if (!isDragging || dragPointIndex === -1) return;
-            e.preventDefault();
-
-            const pos = getPoint(e);
-            points[dragPointIndex] = pos;
-            draw();
+        function showLevelUp() {
+            levelUp.classList.add('show');
+            setTimeout(() => levelUp.classList.remove('show'), 1500);
         }
 
-        canvas.addEventListener('touchend', handleEnd);
-        canvas.addEventListener('mouseup', handleEnd);
-
-        function handleEnd() {
-            isDragging = false;
-            dragPointIndex = -1;
-        }
-
-        // ===== TAB SWITCHING =====
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentTab = btn.dataset.tab;
-
-                if (currentTab === 'level') {
-                    levelView.classList.add('active');
-                    startLevel();
-                } else {
-                    levelView.classList.remove('active');
-                    stopLevel();
-                }
-            });
-        });
-
-        // ===== LEVEL FUNCTIONALITY =====
-        let levelInterval;
-
-        function startLevel() {
-            if (window.DeviceOrientationEvent) {
-                window.addEventListener('deviceorientation', handleOrientation);
-            }
-
-            // Fallback untuk desktop testing
-            levelInterval = setInterval(() => {
-                if (!window.DeviceOrientationEvent) {
-                    const time = Date.now() / 1000;
-                    const beta = Math.sin(time) * 20;
-                    const gamma = Math.cos(time * 0.7) * 20;
-                    updateLevel(beta, gamma);
-                }
-            }, 50);
-        }
-
-        function stopLevel() {
-            window.removeEventListener('deviceorientation', handleOrientation);
-            clearInterval(levelInterval);
-        }
-
-        function handleOrientation(e) {
-            const beta = e.beta || 0;
-            const gamma = e.gamma || 0;
-            updateLevel(beta, gamma);
-        }
-
-        function updateLevel(beta, gamma) {
-            const maxTilt = 20;
-            const x = Math.max(-maxTilt, Math.min(maxTilt, gamma)) / maxTilt * 100;
-            const y = Math.max(-maxTilt, Math.min(maxTilt, beta)) / maxTilt * 100;
-
-            levelBubble.style.transform = `translate(${x}px, ${y}px)`;
-
-            const isCentered = Math.abs(beta) < 1 && Math.abs(gamma) < 1;
-            if (isCentered) {
-                levelBubble.classList.add('centered');
-            } else {
-                levelBubble.classList.remove('centered');
-            }
-
-            const angle = Math.sqrt(beta * beta + gamma * gamma).toFixed(1);
-            levelValue.textContent = angle + '°';
-        }
-
-        // ===== BUTTON ACTIONS =====
-        document.getElementById('clearBtn').addEventListener('click', () => {
-            points = [];
-            instruction.classList.remove('hidden');
-            measureDisplay.style.display = 'none';
-            draw();
-            showToast('Semua titik dihapus');
-        });
-
-        document.getElementById('undoBtn').addEventListener('click', () => {
-            if (points.length > 0) {
-                points.pop();
-                if (points.length === 0) {
-                    instruction.classList.remove('hidden');
-                    measureDisplay.style.display = 'none';
-                }
-                draw();
-            }
-        });
-
-        document.getElementById('shutterBtn').addEventListener('click', () => {
-            if (points.length >= 2) {
-                let totalPixels = 0;
-                for (let i = 0; i < points.length - 1; i++) {
-                    totalPixels += getDistance(points[i], points[i + 1]);
-                }
-                const converted = convertDistance(totalPixels);
-
-                const measurement = {
-                    value: converted.value.toFixed(2),
-                    unit: converted.unit,
-                    date: new Date().toLocaleString('id-ID'),
-                    points: points.length
-                };
-
-                history.unshift(measurement);
-                localStorage.setItem('measureHistory', JSON.stringify(history));
-
-                showToast(`Tersimpan: ${converted.value.toFixed(2)} ${converted.unit}`);
-            } else {
-                showToast('Tambahkan minimal 2 titik untuk menyimpan');
-            }
-        });
-
-        // ===== HISTORY =====
-        document.getElementById('historyBtn').addEventListener('click', () => {
-            renderHistory();
-            historyPanel.classList.add('active');
-        });
-
-        document.getElementById('historyClose').addEventListener('click', () => {
-            historyPanel.classList.remove('active');
-        });
-
-        function renderHistory() {
-            if (history.length === 0) {
-                historyList.innerHTML = '<div class="history-empty">Belum ada pengukuran</div>';
-                return;
-            }
-
-            historyList.innerHTML = history.map((item, index) => `
-                <div class="history-item">
-                    <div>
-                        <div class="history-item-value">${item.value} ${item.unit}</div>
-                        <div class="history-item-date">${item.date} • ${item.points} titik</div>
-                    </div>
-                    <div class="history-item-delete" onclick="deleteHistory(${index})">Hapus</div>
-                </div>
-            `).join('');
-        }
-
-        window.deleteHistory = function(index) {
-            history.splice(index, 1);
-            localStorage.setItem('measureHistory', JSON.stringify(history));
-            renderHistory();
-            showToast('Dihapus dari riwayat');
-        };
-
-        // ===== UNIT SELECTOR =====
-        document.getElementById('unitBtn').addEventListener('click', () => {
-            unitSelector.classList.add('active');
-            overlay.classList.add('active');
-        });
-
-        overlay.addEventListener('click', () => {
-            unitSelector.classList.remove('active');
-            overlay.classList.remove('active');
-        });
-
-        document.querySelectorAll('.unit-option').forEach(option => {
-            option.addEventListener('click', () => {
-                document.querySelectorAll('.unit-option').forEach(o => o.classList.remove('selected'));
-                option.classList.add('selected');
-                currentUnit = option.dataset.unit;
-                document.getElementById('unitBtn').textContent = currentUnit;
-                unitSelector.classList.remove('active');
-                overlay.classList.remove('active');
-                draw();
-                showToast('Satuan diubah ke ' + option.textContent);
-            });
-        });
-
-        // ===== TOAST =====
         function showToast(message) {
             toast.textContent = message;
             toast.classList.add('show');
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 2500);
+            setTimeout(() => toast.classList.remove('show'), 2000);
         }
 
+        // ===== INPUT HANDLING =====
+        function handleInput(e) {
+            if (!gameRunning) return;
+            e.preventDefault();
+
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+
+            let hit = false;
+
+            // Check hits (iterate backwards to hit top germs first)
+            for (let i = germs.length - 1; i >= 0; i--) {
+                const germ = germs[i];
+                if (germ.contains(x, y) && !germ.dead) {
+                    hit = true;
+
+                    if (germ.type.bad) {
+                        // Toxic germ - lose health immediately
+                        loseHealth();
+                        createExplosion(germ.x, germ.y, '#ff3b30', 25);
+                        showComboText(x, y, '💀 -1 ❤️');
+                        germs.splice(i, 1);
+                        return;
+                    }
+
+                    const killed = germ.hit();
+
+                    if (killed) {
+                        // Killed!
+                        totalGermsKilled++;
+                        const result = updateScore(germ.type.points);
+                        createExplosion(germ.x, germ.y, germ.type.color, 20);
+
+                        if (result.combo > 1) {
+                            showComboText(x, y, `🔥 COMBO x${result.combo}! +${result.points}`);
+                        } else {
+                            showComboText(x, y, `+${result.points}`);
+                        }
+
+                        germs.splice(i, 1);
+                    } else {
+                        // Hit but not killed
+                        createExplosion(x, y, germ.type.color, 5);
+                        showComboText(x, y, '💥');
+                    }
+                    break; // Only hit one germ per tap
+                }
+            }
+
+            if (!hit) {
+                // Miss effect
+                createExplosion(x, y, '#888', 3);
+                combo = 0;
+            }
+        }
+
+        canvas.addEventListener('touchstart', handleInput, {passive: false});
+        canvas.addEventListener('mousedown', handleInput);
+
+        // ===== GAME LOOP =====
+        let gameLoopId;
+        let timerInterval;
+
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Update and draw germs
+            for (let i = germs.length - 1; i >= 0; i--) {
+                const germ = germs[i];
+                germ.update();
+                germ.draw();
+
+                if (germ.dead) {
+                    if (!germ.type.bad) {
+                        // Non-bad germ escaped
+                        loseHealth();
+                    }
+                    germs.splice(i, 1);
+                }
+            }
+
+            // Update and draw particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.update();
+                p.draw();
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            gameLoopId = requestAnimationFrame(gameLoop);
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                if (!gameRunning) return;
+                timeLeft--;
+                timeValue.textContent = timeLeft;
+
+                if (timeLeft <= 10) {
+                    timeValue.style.color = '#ff3b30';
+                }
+
+                if (timeLeft <= 0) {
+                    gameOver();
+                }
+            }, 1000);
+        }
+
+        // ===== START GAME =====
+        function startGame() {
+            score = 0;
+            level = 1;
+            timeLeft = 60;
+            health = 3;
+            germs = [];
+            particles = [];
+            combo = 0;
+            lastKillTime = 0;
+            totalGermsKilled = 0;
+            maxCombo = 0;
+            gameRunning = true;
+
+            scoreValue.textContent = '0';
+            levelValue.textContent = '1';
+            timeValue.textContent = '60';
+            timeValue.style.color = '#fff';
+            updateHealthDisplay();
+
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.remove('active');
+            germInfo.style.display = 'flex';
+
+            spawnGerm();
+            gameLoop();
+            startTimer();
+
+            showToast('Berburu dimulai! Ketuk kuman!');
+        }
+
+        // ===== GAME OVER =====
+        function gameOver() {
+            gameRunning = false;
+            clearInterval(timerInterval);
+            cancelAnimationFrame(gameLoopId);
+
+            finalScore.textContent = score;
+            finalStats.innerHTML = `
+                Kuman dibasmi: <span style="color:#4cd964">${totalGermsKilled}</span><br>
+                Level tertinggi: <span style="color:#4cd964">${level}</span><br>
+                Combo maksimal: <span style="color:#ffcc00">x${maxCombo}</span><br>
+                Sisa waktu: <span style="color:#4cd964">${timeLeft} detik</span>
+            `;
+
+            gameOverScreen.classList.add('active');
+            germInfo.style.display = 'none';
+        }
+
+        // ===== BUTTON EVENTS =====
+        document.getElementById('startBtn').addEventListener('click', () => {
+            startCamera().then(() => {
+                startGame();
+            }).catch(() => {
+                enableSimulationMode();
+                startGame();
+            });
+        });
+
+        document.getElementById('simBtn').addEventListener('click', () => {
+            enableSimulationMode();
+            startGame();
+        });
+
+        document.getElementById('restartBtn').addEventListener('click', () => {
+            startGame();
+        });
+
+        // Pause button
+        let isPaused = false;
+        document.getElementById('pauseBtn').addEventListener('click', () => {
+            if (!gameRunning) return;
+            isPaused = !isPaused;
+            if (isPaused) {
+                gameRunning = false;
+                clearInterval(timerInterval);
+                showToast('PAUSED - Ketuk pause lagi untuk lanjut');
+            } else {
+                gameRunning = true;
+                gameLoop();
+                startTimer();
+            }
+        });
+
         // ===== INITIALIZE =====
-        draw();
+        resizeCanvas();
     </script>
 </body>
 </html>
