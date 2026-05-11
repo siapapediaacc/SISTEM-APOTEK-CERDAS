@@ -1,972 +1,314 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Germ Hunter AR - WebXR Edition</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: none;
-        }
-
-        body {
-            background: #000;
-            color: #fff;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            overflow: hidden;
-            height: 100vh;
-            width: 100vw;
-        }
-
-        /* ===== WEBXR CANVAS ===== */
-        #xrCanvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-        }
-
-        /* ===== HUD ===== */
-        .hud {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            padding: 15px 20px;
-            z-index: 100;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(10px);
-            pointer-events: none;
-        }
-
-        .hud-item {
-            text-align: center;
-        }
-
-        .hud-label {
-            font-size: 11px;
-            color: #4cd964;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 2px;
-        }
-
-        .hud-value {
-            font-size: 24px;
-            font-weight: 700;
-            color: #fff;
-        }
-
-        .hud-health {
-            display: flex;
-            gap: 3px;
-        }
-
-        .health-heart {
-            font-size: 20px;
-            transition: all 0.3s;
-        }
-
-        .health-heart.lost {
-            opacity: 0.2;
-            filter: grayscale(1);
-        }
-
-        /* ===== START SCREEN ===== */
-        .start-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.92);
-            z-index: 500;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 40px;
-            text-align: center;
-        }
-
-        .start-screen.hidden {
-            display: none;
-        }
-
-        .game-logo {
-            font-size: 80px;
-            margin-bottom: 20px;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
-
-        .game-title {
-            font-size: 32px;
-            font-weight: 800;
-            color: #4cd964;
-            margin-bottom: 10px;
-            text-shadow: 0 0 20px rgba(76, 217, 100, 0.5);
-        }
-
-        .game-subtitle {
-            font-size: 16px;
-            color: #888;
-            margin-bottom: 20px;
-        }
-
-        .browser-info {
-            font-size: 14px;
-            color: #ff9500;
-            margin-bottom: 20px;
-            padding: 10px 20px;
-            background: rgba(255, 149, 0, 0.1);
-            border-radius: 10px;
-            border: 1px solid rgba(255, 149, 0, 0.3);
-        }
-
-        .game-instructions {
-            font-size: 14px;
-            color: #aaa;
-            line-height: 1.6;
-            margin-bottom: 30px;
-            max-width: 300px;
-        }
-
-        .game-instructions strong {
-            color: #4cd964;
-        }
-
-        .start-btn {
-            background: #4cd964;
-            color: #000;
-            border: none;
-            padding: 18px 50px;
-            border-radius: 30px;
-            font-size: 20px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 0 30px rgba(76, 217, 100, 0.4);
-            margin-bottom: 15px;
-        }
-
-        .start-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 40px rgba(76, 217, 100, 0.6);
-        }
-
-        .start-btn:disabled {
-            background: #333;
-            color: #666;
-            cursor: not-allowed;
-            box-shadow: none;
-        }
-
-        .fallback-btn {
-            background: transparent;
-            color: #4cd964;
-            border: 2px solid #4cd964;
-            padding: 12px 30px;
-            border-radius: 20px;
-            font-size: 14px;
-            cursor: pointer;
-        }
-
-        /* ===== GAME OVER SCREEN ===== */
-        .game-over-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.92);
-            z-index: 500;
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 40px;
-            text-align: center;
-        }
-
-        .game-over-screen.active {
-            display: flex;
-        }
-
-        .game-over-icon {
-            font-size: 60px;
-            margin-bottom: 20px;
-        }
-
-        .game-over-title {
-            font-size: 28px;
-            font-weight: 700;
-            color: #ff3b30;
-            margin-bottom: 10px;
-        }
-
-        .game-over-score {
-            font-size: 48px;
-            font-weight: 800;
-            color: #4cd964;
-            margin: 20px 0;
-        }
-
-        .game-over-stats {
-            font-size: 16px;
-            color: #888;
-            margin-bottom: 30px;
-            line-height: 1.8;
-        }
-
-        .restart-btn {
-            background: #4cd964;
-            color: #000;
-            border: none;
-            padding: 16px 40px;
-            border-radius: 25px;
-            font-size: 18px;
-            font-weight: 700;
-            cursor: pointer;
-        }
-
-        /* ===== TOAST ===== */
-        .toast {
-            position: fixed;
-            bottom: 120px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(255, 255, 255, 0.9);
-            color: #000;
-            padding: 12px 24px;
-            border-radius: 25px;
-            font-size: 14px;
-            font-weight: 600;
-            z-index: 300;
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-        }
-
-        .toast.show {
-            opacity: 1;
-        }
-
-        /* ===== LOADING ===== */
-        .loading {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 400;
-            display: none;
-            text-align: center;
-        }
-
-        .loading.active {
-            display: block;
-        }
-
-        .loading-spinner {
-            width: 50px;
-            height: 50px;
-            border: 3px solid rgba(76, 217, 100, 0.3);
-            border-top-color: #4cd964;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-    </style>
-
-    <!-- Three.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Germ Hunter AR</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;touch-action:none}
+body{background:#000;color:#fff;font-family:sans-serif;overflow:hidden;height:100vh;width:100vw}
+#cam{position:fixed;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:1;background:#000}
+#cv{position:fixed;top:0;left:0;width:100%;height:100%;z-index:10}
+.hud{position:fixed;top:0;left:0;right:0;padding:10px 15px;z-index:100;display:flex;justify-content:space-between;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);font-size:12px}
+.hud-item{text-align:center}
+.hud-label{color:#4cd964;font-size:10px;text-transform:uppercase}
+.hud-value{font-size:20px;font-weight:700}
+.ss{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center}
+.ss.hidden{display:none}
+.ss h1{font-size:36px;color:#4cd964;margin-bottom:10px}
+.ss p{color:#888;margin-bottom:5px;font-size:14px}
+.btn{background:#4cd964;color:#000;border:none;padding:15px 40px;border-radius:25px;font-size:18px;font-weight:700;cursor:pointer;margin:10px}
+.btn2{background:transparent;color:#888;border:1px solid #444;padding:10px 25px;border-radius:20px;font-size:13px;cursor:pointer}
+.gos{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:600;display:none;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center}
+.gos.active{display:flex}
+.gos h2{font-size:28px;color:#ff3b30;margin-bottom:10px}
+.gos .sc{font-size:48px;color:#4cd964;font-weight:800;margin:15px 0}
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#fff;color:#000;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:300;opacity:0;transition:opacity 0.3s;pointer-events:none}
+.toast.show{opacity:1}
+.lvl{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);background:#4cd964;color:#000;padding:15px 30px;border-radius:10px;font-size:22px;font-weight:700;z-index:300;transition:transform 0.4s;pointer-events:none}
+.lvl.show{transform:translate(-50%,-50%) scale(1)}
+.combo{position:fixed;font-size:28px;font-weight:800;color:#ffcc00;text-shadow:0 0 15px rgba(255,204,0,0.8);z-index:200;pointer-events:none;animation:cf 1s ease-out forwards}
+@keyframes cf{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-60px)}}
+.info{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:100;display:flex;gap:12px;opacity:0.7;background:rgba(0,0,0,0.5);padding:6px 12px;border-radius:15px;font-size:10px}
+.info div{text-align:center}
+</style>
 </head>
 <body>
-    <!-- WebXR Canvas -->
-    <canvas id="xrCanvas"></canvas>
-
-    <!-- HUD -->
-    <div class="hud" id="hud" style="display: none;">
-        <div class="hud-item">
-            <div class="hud-label">Skor</div>
-            <div class="hud-value" id="scoreValue">0</div>
-        </div>
-        <div class="hud-item">
-            <div class="hud-label">Level</div>
-            <div class="hud-value" id="levelValue">1</div>
-        </div>
-        <div class="hud-item">
-            <div class="hud-label">Waktu</div>
-            <div class="hud-value" id="timeValue">60</div>
-        </div>
-        <div class="hud-item">
-            <div class="hud-label">Nyawa</div>
-            <div class="hud-health" id="healthValue">
-                <span class="health-heart">❤️</span>
-                <span class="health-heart">❤️</span>
-                <span class="health-heart">❤️</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- Start Screen -->
-    <div class="start-screen" id="startScreen">
-        <div class="game-logo">🦠</div>
-        <div class="game-title">GERM HUNTER AR</div>
-        <div class="game-subtitle">WebXR Edition</div>
-        <div class="browser-info" id="browserInfo">Mendeteksi browser...</div>
-        <div class="game-instructions">
-            <strong>🎮 Cara Main:</strong><br>
-            • Kuman muncul di permukaan nyata (meja/lantai/dinding)<br>
-            • <strong>Gerakkan HP</strong> untuk melihat sekeliling<br>
-            • <strong>Ketuk kuman</strong> untuk membasminya<br>
-            • Hindari 💀 Toxic!<br><br>
-            <strong>📱 Butuh Chrome Android dengan ARCore</strong>
-        </div>
-        <button class="start-btn" id="startBtn">MULAI AR!</button>
-        <button class="fallback-btn" id="fallbackBtn" style="display: none;">Mode Gyroscope (iOS)</button>
-    </div>
-
-    <!-- Loading -->
-    <div class="loading" id="loading">
-        <div class="loading-spinner"></div>
-        <div>Memulai WebXR...</div>
-    </div>
-
-    <!-- Game Over Screen -->
-    <div class="game-over-screen" id="gameOverScreen">
-        <div class="game-over-icon">🧼</div>
-        <div class="game-over-title">BERSIH SELESAI!</div>
-        <div class="game-over-score" id="finalScore">0</div>
-        <div class="game-over-stats" id="finalStats"></div>
-        <button class="restart-btn" id="restartBtn">BERBURU LAGI!</button>
-    </div>
-
-    <!-- Toast -->
-    <div class="toast" id="toast"></div>
-
-    <script>
-        // ===== GAME STATE =====
-        let score = 0;
-        let level = 1;
-        let timeLeft = 60;
-        let health = 3;
-        let gameRunning = false;
-        let totalGermsKilled = 0;
-        let maxCombo = 0;
-
-        // ===== DOM =====
-        const scoreValue = document.getElementById('scoreValue');
-        const levelValue = document.getElementById('levelValue');
-        const timeValue = document.getElementById('timeValue');
-        const healthValue = document.getElementById('healthValue');
-        const startScreen = document.getElementById('startScreen');
-        const gameOverScreen = document.getElementById('gameOverScreen');
-        const finalScore = document.getElementById('finalScore');
-        const finalStats = document.getElementById('finalStats');
-        const toast = document.getElementById('toast');
-        const browserInfo = document.getElementById('browserInfo');
-        const startBtn = document.getElementById('startBtn');
-        const fallbackBtn = document.getElementById('fallbackBtn');
-        const loading = document.getElementById('loading');
-        const hud = document.getElementById('hud');
-
-        // ===== THREE.JS SETUP =====
-        const canvas = document.getElementById('xrCanvas');
-        const renderer = new THREE.WebGLRenderer({ 
-            canvas: canvas, 
-            antialias: true, 
-            alpha: true 
-        });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.xr.enabled = true;
-
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-
-        // Lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-        scene.add(ambientLight);
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(5, 10, 5);
-        scene.add(directionalLight);
-
-        // ===== GERM TYPES =====
-        const germTypes = [
-            { emoji: '🦠', points: 10, color: 0x4cd964, scale: 0.3, health: 1, name: 'Bacteria' },
-            { emoji: '🧟', points: 25, color: 0xff9500, scale: 0.4, health: 2, name: 'Virus' },
-            { emoji: '👾', points: 50, color: 0xff2d55, scale: 0.45, health: 3, name: 'Superbug' },
-            { emoji: '💀', points: -50, color: 0xff3b30, scale: 0.35, health: 1, name: 'Toxic', bad: true }
-        ];
-
-        // ===== GERM CLASS =====
-        class ARGerm {
-            constructor(position, anchor = null) {
-                const type = this.selectType();
-                this.type = type;
-                this.health = type.health;
-                this.maxHealth = type.health;
-                this.dead = false;
-                this.lifeTime = 0;
-                this.maxLifeTime = 1000 + Math.random() * 500;
-                this.anchor = anchor;
-
-                // Create 3D object
-                this.group = new THREE.Group();
-                this.group.position.copy(position);
-
-                // Body (sphere)
-                const geometry = new THREE.SphereGeometry(type.scale, 16, 16);
-                const material = new THREE.MeshStandardMaterial({
-                    color: type.color,
-                    emissive: type.color,
-                    emissiveIntensity: 0.3,
-                    roughness: 0.4,
-                    metalness: 0.6
-                });
-                this.mesh = new THREE.Mesh(geometry, material);
-                this.group.add(this.mesh);
-
-                // Glow ring
-                const ringGeo = new THREE.RingGeometry(type.scale * 1.2, type.scale * 1.4, 32);
-                const ringMat = new THREE.MeshBasicMaterial({
-                    color: type.color,
-                    transparent: true,
-                    opacity: 0.5,
-                    side: THREE.DoubleSide
-                });
-                this.ring = new THREE.Mesh(ringGeo, ringMat);
-                this.ring.rotation.x = -Math.PI / 2;
-                this.group.add(this.ring);
-
-                // Label sprite
-                this.createLabel(type.emoji);
-
-                // Animation
-                this.wobble = Math.random() * Math.PI * 2;
-                this.wobbleSpeed = 0.02 + Math.random() * 0.03;
-                this.pulsePhase = 0;
-
-                scene.add(this.group);
-
-                // Scale animation
-                this.targetScale = 1;
-                this.currentScale = 0;
-            }
-
-            selectType() {
-                const rand = Math.random();
-                if (rand < 0.5) return germTypes[0];
-                if (rand < 0.75) return germTypes[1];
-                if (rand < 0.9) return germTypes[2];
-                return germTypes[3];
-            }
-
-            createLabel(text) {
-                const canvas = document.createElement('canvas');
-                canvas.width = 128;
-                canvas.height = 128;
-                const ctx = canvas.getContext('2d');
-                ctx.font = '80px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(text, 64, 64);
-
-                const texture = new THREE.CanvasTexture(canvas);
-                const spriteMat = new THREE.SpriteMaterial({ map: texture });
-                const sprite = new THREE.Sprite(spriteMat);
-                sprite.scale.set(0.5, 0.5, 0.5);
-                sprite.position.y = this.type.scale + 0.2;
-                this.group.add(sprite);
-                this.sprite = sprite;
-            }
-
-            update() {
-                this.lifeTime++;
-                this.wobble += this.wobbleSpeed;
-                this.pulsePhase += 0.05;
-
-                // Spawn animation
-                if (this.currentScale < this.targetScale) {
-                    this.currentScale += 0.05;
-                    this.group.scale.setScalar(this.currentScale);
-                }
-
-                // Float animation
-                this.group.position.y += Math.sin(this.wobble) * 0.002;
-
-                // Ring rotation
-                this.ring.rotation.z += 0.02;
-
-                // Pulse glow
-                const pulse = 1 + Math.sin(this.pulsePhase) * 0.2;
-                this.mesh.scale.setScalar(pulse);
-
-                // Die if lifetime exceeded
-                if (this.lifeTime > this.maxLifeTime && !this.type.bad) {
-                    this.dead = true;
-                }
-            }
-
-            hit() {
-                this.health--;
-
-                // Flash effect
-                this.mesh.material.emissiveIntensity = 1;
-                setTimeout(() => {
-                    if (this.mesh) this.mesh.material.emissiveIntensity = 0.3;
-                }, 100);
-
-                if (this.health <= 0) {
-                    this.dead = true;
-                    return true;
-                }
-                return false;
-            }
-
-            destroy() {
-                scene.remove(this.group);
-                this.mesh.geometry.dispose();
-                this.mesh.material.dispose();
-                this.ring.geometry.dispose();
-                this.ring.material.dispose();
-                if (this.sprite) {
-                    this.sprite.material.map.dispose();
-                    this.sprite.material.dispose();
-                }
-            }
-
-            getDistanceFromCamera() {
-                return this.group.position.distanceTo(camera.position);
-            }
-        }
-
-        // ===== GAME VARIABLES =====
-        let germs = [];
-        let xrSession = null;
-        let xrReferenceSpace = null;
-        let hitTestSource = null;
-        let hitTestSourceRequested = false;
-        let reticle = null;
-        let isARSupported = false;
-        let combo = 0;
-        let lastKillTime = 0;
-        let gameLoopId = null;
-        let timerInterval = null;
-
-        // ===== RETICLE (placement indicator) =====
-        function createReticle() {
-            const geometry = new THREE.RingGeometry(0.15, 0.2, 32);
-            const material = new THREE.MeshBasicMaterial({
-                color: 0x4cd964,
-                transparent: true,
-                opacity: 0.8,
-                side: THREE.DoubleSide
-            });
-            reticle = new THREE.Mesh(geometry, material);
-            reticle.rotation.x = -Math.PI / 2;
-            reticle.visible = false;
-            scene.add(reticle);
-        }
-
-        // ===== CHECK AR SUPPORT =====
-        async function checkARSupport() {
-            if (navigator.xr) {
-                try {
-                    isARSupported = await navigator.xr.isSessionSupported('immersive-ar');
-                    if (isARSupported) {
-                        browserInfo.textContent = '✅ WebXR AR tersedia!';
-                        browserInfo.style.color = '#4cd964';
-                        browserInfo.style.borderColor = 'rgba(76, 217, 100, 0.3)';
-                        startBtn.disabled = false;
-                    } else {
-                        browserInfo.textContent = '❌ WebXR AR tidak tersedia di browser ini';
-                        browserInfo.style.color = '#ff3b30';
-                        fallbackBtn.style.display = 'block';
-                        startBtn.disabled = true;
-                    }
-                } catch (e) {
-                    browserInfo.textContent = '❌ WebXR tidak didukung';
-                    browserInfo.style.color = '#ff3b30';
-                    fallbackBtn.style.display = 'block';
-                    startBtn.disabled = true;
-                }
-            } else {
-                browserInfo.textContent = '❌ Browser tidak support WebXR';
-                browserInfo.style.color = '#ff3b30';
-                fallbackBtn.style.display = 'block';
-                startBtn.disabled = true;
-            }
-        }
-
-        // ===== START AR SESSION =====
-        async function startARSession() {
-            loading.classList.add('active');
-
-            try {
-                xrSession = await navigator.xr.requestSession('immersive-ar', {
-                    requiredFeatures: ['hit-test'],
-                    optionalFeatures: ['dom-overlay'],
-                    domOverlay: { root: document.body }
-                });
-
-                renderer.xr.setSession(xrSession);
-
-                xrReferenceSpace = await xrSession.requestReferenceSpace('local');
-
-                const viewerSpace = await xrSession.requestReferenceSpace('viewer');
-                hitTestSource = await xrSession.requestHitTestSource({
-                    space: viewerSpace
-                });
-                hitTestSourceRequested = true;
-
-                xrSession.addEventListener('end', onXRSessionEnd);
-                xrSession.addEventListener('select', onXRSelect);
-
-                loading.classList.remove('active');
-                startScreen.classList.add('hidden');
-                hud.style.display = 'flex';
-
-                startGame();
-                renderer.setAnimationLoop(renderLoop);
-
-            } catch (err) {
-                console.error('AR Session error:', err);
-                loading.classList.remove('active');
-                showToast('Gagal memulai AR: ' + err.message);
-                fallbackBtn.style.display = 'block';
-            }
-        }
-
-        // ===== RENDER LOOP =====
-        function renderLoop(timestamp, frame) {
-            if (!frame) return;
-
-            const session = renderer.xr.getSession();
-            if (!session) return;
-
-            const referenceSpace = renderer.xr.getReferenceSpace();
-
-            // Hit test
-            if (hitTestSource) {
-                const hitTestResults = frame.getHitTestResults(hitTestSource);
-                if (hitTestResults.length > 0) {
-                    const hit = hitTestResults[0];
-                    const pose = hit.getPose(referenceSpace);
-                    if (pose && reticle) {
-                        reticle.visible = true;
-                        reticle.position.set(
-                            pose.transform.position.x,
-                            pose.transform.position.y,
-                            pose.transform.position.z
-                        );
-                        reticle.updateMatrixWorld();
-                    }
-                } else if (reticle) {
-                    reticle.visible = false;
-                }
-            }
-
-            // Update germs
-            updateGerms();
-
-            renderer.render(scene, camera);
-        }
-
-        // ===== UPDATE GERMS =====
-        function updateGerms() {
-            for (let i = germs.length - 1; i >= 0; i--) {
-                const germ = germs[i];
-                germ.update();
-
-                if (germ.dead) {
-                    if (!germ.type.bad) {
-                        loseHealth();
-                    }
-                    germ.destroy();
-                    germs.splice(i, 1);
-                }
-            }
-        }
-
-        // ===== SPAWN GERM =====
-        function spawnGerm() {
-            if (!gameRunning) return;
-
-            const maxGerms = 3 + level;
-            if (germs.length < maxGerms && reticle && reticle.visible) {
-                // Spawn at reticle position with random offset
-                const offset = new THREE.Vector3(
-                    (Math.random() - 0.5) * 2,
-                    0,
-                    (Math.random() - 0.5) * 2
-                );
-                const position = reticle.position.clone().add(offset);
-                position.y = Math.max(0.1, position.y); // Don't go below ground
-
-                const germ = new ARGerm(position);
-                germs.push(germ);
-            }
-
-            const spawnDelay = Math.max(1000, 3000 - level * 200);
-            setTimeout(spawnGerm, spawnDelay);
-        }
-
-        // ===== XR SELECT EVENT (tap) =====
-        function onXRSelect(event) {
-            if (!gameRunning) return;
-
-            const frame = event.frame;
-            const referenceSpace = renderer.xr.getReferenceSpace();
-            const inputSource = event.inputSource;
-
-            // Get touch position in 3D space
-            const gripPose = frame.getPose(inputSource.targetRaySpace, referenceSpace);
-            if (!gripPose) return;
-
-            const rayOrigin = new THREE.Vector3(
-                gripPose.transform.position.x,
-                gripPose.transform.position.y,
-                gripPose.transform.position.z
-            );
-            const rayDirection = new THREE.Vector3(
-                gripPose.transform.orientation.x,
-                gripPose.transform.orientation.y,
-                gripPose.transform.orientation.z
-            );
-
-            // Check which germ was hit
-            let hit = false;
-            let nearestDist = Infinity;
-            let nearestGerm = null;
-
-            for (const germ of germs) {
-                if (germ.dead) continue;
-
-                const dist = germ.getDistanceFromCamera();
-                if (dist < 2 && dist < nearestDist) {
-                    nearestDist = dist;
-                    nearestGerm = germ;
-                }
-            }
-
-            if (nearestGerm) {
-                hit = true;
-
-                if (nearestGerm.type.bad) {
-                    loseHealth();
-                    showToast('💀 Toxic! -1 ❤️');
-                    nearestGerm.dead = true;
-                } else {
-                    const killed = nearestGerm.hit();
-                    if (killed) {
-                        totalGermsKilled++;
-                        const result = updateScore(nearestGerm.type.points);
-
-                        if (result.combo > 1) {
-                            showToast(`🔥 COMBO x${result.combo}! +${result.points}`);
-                        } else {
-                            showToast(`+${result.points}`);
-                        }
-                    }
-                }
-            }
-
-            if (!hit) {
-                combo = 0;
-            }
-        }
-
-        // ===== GAME FUNCTIONS =====
-        function startGame() {
-            score = 0;
-            level = 1;
-            timeLeft = 60;
-            health = 3;
-            germs = [];
-            combo = 0;
-            lastKillTime = 0;
-            totalGermsKilled = 0;
-            maxCombo = 0;
-            gameRunning = true;
-
-            scoreValue.textContent = '0';
-            levelValue.textContent = '1';
-            timeValue.textContent = '60';
-            timeValue.style.color = '#fff';
-            updateHealthDisplay();
-
-            createReticle();
-            spawnGerm();
-            startTimer();
-
-            showToast('Berburu dimulai! Scan permukaan untuk menemukan kuman!');
-        }
-
-        function startTimer() {
-            timerInterval = setInterval(() => {
-                if (!gameRunning) return;
-                timeLeft--;
-                timeValue.textContent = timeLeft;
-
-                if (timeLeft <= 10) {
-                    timeValue.style.color = '#ff3b30';
-                }
-
-                if (timeLeft <= 0) {
-                    gameOver();
-                }
-            }, 1000);
-        }
-
-        function loseHealth() {
-            health--;
-            updateHealthDisplay();
-
-            if (health <= 0) {
-                gameOver();
-            } else {
-                showToast(`Kuman lolos! Nyawa tersisa: ${health}`);
-            }
-        }
-
-        function updateHealthDisplay() {
-            let hearts = '';
-            for (let i = 0; i < 3; i++) {
-                hearts += `<span class="health-heart ${i >= health ? 'lost' : ''}">❤️</span>`;
-            }
-            healthValue.innerHTML = hearts;
-        }
-
-        function updateScore(points) {
-            const now = Date.now();
-            if (now - lastKillTime < 1500) {
-                combo++;
-                if (combo > maxCombo) maxCombo = combo;
-            } else {
-                combo = 1;
-            }
-            lastKillTime = now;
-
-            const comboMultiplier = Math.min(combo, 5);
-            const finalPoints = points * comboMultiplier;
-            score += finalPoints;
-
-            scoreValue.textContent = score;
-
-            const newLevel = Math.floor(score / 200) + 1;
-            if (newLevel > level) {
-                level = newLevel;
-                levelValue.textContent = level;
-                showToast(`Level ${level}! Kuman semakin banyak!`);
-            }
-
-            return { combo: comboMultiplier, points: finalPoints };
-        }
-
-        function gameOver() {
-            gameRunning = false;
-            clearInterval(timerInterval);
-            renderer.setAnimationLoop(null);
-
-            // Clean up germs
-            for (const germ of germs) {
-                germ.destroy();
-            }
-            germs = [];
-
-            if (reticle) {
-                scene.remove(reticle);
-                reticle = null;
-            }
-
-            finalScore.textContent = score;
-            finalStats.innerHTML = `
-                Kuman dibasmi: <span style="color:#4cd964">${totalGermsKilled}</span><br>
-                Level tertinggi: <span style="color:#4cd964">${level}</span><br>
-                Combo maksimal: <span style="color:#ffcc00">x${maxCombo}</span>
-            `;
-
-            hud.style.display = 'none';
-            gameOverScreen.classList.add('active');
-        }
-
-        function onXRSessionEnd() {
-            gameRunning = false;
-            clearInterval(timerInterval);
-            renderer.setAnimationLoop(null);
-            hitTestSource = null;
-            hitTestSourceRequested = false;
-            xrSession = null;
-
-            // Clean up
-            for (const germ of germs) {
-                germ.destroy();
-            }
-            germs = [];
-
-            if (reticle) {
-                scene.remove(reticle);
-                reticle = null;
-            }
-
-            hud.style.display = 'none';
-            startScreen.classList.remove('hidden');
-        }
-
-        // ===== TOAST =====
-        function showToast(message) {
-            toast.textContent = message;
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 2000);
-        }
-
-        // ===== BUTTON EVENTS =====
-        startBtn.addEventListener('click', () => {
-            if (isARSupported) {
-                startARSession();
-            }
-        });
-
-        fallbackBtn.addEventListener('click', () => {
-            window.location.href = 'germ_hunter_gyro.html'; // Redirect to gyroscope version
-        });
-
-        document.getElementById('restartBtn').addEventListener('click', () => {
-            gameOverScreen.classList.remove('active');
-            startScreen.classList.remove('hidden');
-        });
-
-        // ===== RESIZE =====
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-        // ===== INIT =====
-        checkARSupport();
-    </script>
+<video id="cam" autoplay playsinline muted></video>
+<canvas id="cv"></canvas>
+<div class="hud" id="hud" style="display:none">
+<div class="hud-item"><div class="hud-label">Skor</div><div class="hud-value" id="sc">0</div></div>
+<div class="hud-item"><div class="hud-label">Level</div><div class="hud-value" id="lv">1</div></div>
+<div class="hud-item"><div class="hud-label">Waktu</div><div class="hud-value" id="tm">60</div></div>
+<div class="hud-item"><div class="hud-label">Nyawa</div><div class="hud-value" id="hp">❤️❤️❤️</div></div>
+</div>
+<div class="ss" id="ss">
+<div style="font-size:60px;margin-bottom:15px">🦠</div>
+<h1>GERM HUNTER</h1>
+<p style="margin-bottom:20px">AR Gyroscope Edition</p>
+<p style="font-size:13px;color:#aaa;margin-bottom:25px">Gerakkan HP untuk mencari kuman<br>Ketuk untuk membasmi!</p>
+<button class="btn" id="st">MULAI!</button>
+<button class="btn2" id="sim">Mode Tanpa Kamera</button>
+</div>
+<div class="gos" id="gos">
+<div style="font-size:50px;margin-bottom:10px">🧼</div>
+<h2>SELESAI!</h2>
+<div class="sc" id="fs">0</div>
+<div style="color:#888;font-size:14px;margin-bottom:20px" id="fst"></div>
+<button class="btn" id="rs">MAIN LAGI</button>
+</div>
+<div class="lvl" id="lvl">LEVEL UP!</div>
+<div class="toast" id="toast"></div>
+<div class="info" id="info">
+<div>🦠 +10</div>
+<div>🧟 +25</div>
+<div>👾 +50</div>
+<div>💀 -1❤️</div>
+</div>
+<script>
+let score=0,level=1,time=60,health=3,run=false,germs=[],parts=[],combo=0,lk=0,tk=0,mc=0,stream=null,sim=false;
+let yaw=0,pitch=0,by=0,bp=0,cal=false,gyro=false;
+const WW=3000,WH=2000,VAH=50,VAV=40;
+const cam=document.getElementById('cam');
+const cvs=document.getElementById('cv');
+const cx=cvs.getContext('2d');
+const types=[
+{emoji:'🦠',pts:10,sp:0.3,sz:50,hp:1,cl:'#4cd964'},
+{emoji:'🧟',pts:25,sp:0.5,sz:60,hp:2,cl:'#ff9500'},
+{emoji:'👾',pts:50,sp:0.7,sz:65,hp:3,cl:'#ff2d55'},
+{emoji:'💀',pts:-50,sp:0.8,sz:55,hp:1,cl:'#ff3b30',bad:true}
+];
+
+function rsz(){cvs.width=innerWidth;cvs.height=innerHeight}
+addEventListener('resize',rsz);rsz();
+
+async function sc(){
+try{if(stream)stream.getTracks().forEach(t=>t.stop());
+stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+cam.srcObject=stream;cam.onloadedmetadata=()=>cam.play()}
+catch(e){esim()}
+}
+
+function esim(){
+sim=true;cam.style.display='none';
+let d=document.createElement('div');
+d.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,#0a1628,#1a2f4a);z-index:1';
+document.body.insertBefore(d,cam);
+}
+
+function ig(){
+if(window.DeviceOrientationEvent){
+addEventListener('deviceorientation',ho);gyro=true;
+if(typeof DeviceOrientationEvent.requestPermission==='function'){
+DeviceOrientationEvent.requestPermission().then(r=>{if(r==='granted')gyro=true}).catch(()=>{})
+}
+}else{gyro=false;im()}
+}
+
+let ld=false,lmx=0,lmy=0;
+function im(){
+document.addEventListener('mousedown',e=>{if(!run)return;ld=true;lmx=e.clientX;lmy=e.clientY});
+document.addEventListener('mousemove',e=>{if(!ld||!run)return;yaw-=(e.clientX-lmx)*0.3;pitch-=(e.clientY-lmy)*0.3;pitch=Math.max(-60,Math.min(60,pitch));lmx=e.clientX;lmy=e.clientY});
+document.addEventListener('mouseup',()=>ld=false);
+document.addEventListener('touchstart',e=>{if(!run)return;ld=true;lmx=e.touches[0].clientX;lmy=e.touches[0].clientY},{passive:true});
+document.addEventListener('touchmove',e=>{if(!ld||!run)return;yaw-=(e.touches[0].clientX-lmx)*0.3;pitch-=(e.touches[0].clientY-lmy)*0.3;pitch=Math.max(-60,Math.min(60,pitch));lmx=e.touches[0].clientX;lmy=e.touches[0].clientY},{passive:true});
+document.addEventListener('touchend',()=>ld=false);
+}
+
+function ho(e){
+if(!cal)return;
+let a=e.alpha||0,b=e.beta||0;
+yaw=a-by;if(yaw>180)yaw-=360;if(yaw<-180)yaw+=360;
+pitch=b-bp;
+}
+
+let loe=null;
+addEventListener('deviceorientation',e=>loe=e);
+
+function clb(){
+if(gyro&&loe){by=loe.alpha||0;bp=loe.beta||0}
+cal=true;
+document.getElementById('ss').classList.add('hidden');
+sg();
+}
+
+class Germ{
+constructor(){
+let t=this.st();this.type=t;
+this.wx=(Math.random()-0.5)*WW;this.wy=(Math.random()-0.5)*WH;this.wz=300+Math.random()*400;
+this.sz=t.sz;this.hp=t.hp;this.mh=t.hp;this.sp=t.sp;this.dead=false;
+this.lt=0;this.ml=1500+Math.random()*800;
+this.vx=(Math.random()-0.5)*this.sp;this.vy=(Math.random()-0.5)*this.sp;
+this.wb=Math.random()*Math.PI*2;this.ws=0.03+Math.random()*0.04;this.pp=0;this.sc=0;this.ts=1;
+}
+st(){let r=Math.random();if(r<0.5)return types[0];if(r<0.75)return types[1];if(r<0.9)return types[2];return types[3]}
+up(){
+this.lt++;this.wb+=this.ws;this.pp+=0.1;
+if(this.sc<this.ts){this.sc+=0.06;if(this.sc>this.ts)this.sc=this.ts}
+this.wx+=this.vx;this.wy+=this.vy;
+if(Math.abs(this.wx)>WW/2)this.vx*=-1;if(Math.abs(this.wy)>WH/2)this.vy*=-1;
+if(this.lt>this.ml&&!this.type.bad)this.dead=true;
+}
+vis(){
+let ry=Math.atan2(this.wx,this.wz)*180/Math.PI;
+let rp=Math.atan2(this.wy,this.wz)*180/Math.PI;
+let dy=ry-yaw,dp=rp-pitch;
+if(dy>180)dy-=360;if(dy<-180)dy+=360;
+return Math.abs(dy)<VAH&&Math.abs(dp)<VAV;
+}
+spos(){
+let ry=Math.atan2(this.wx,this.wz)*180/Math.PI;
+let rp=Math.atan2(this.wy,this.wz)*180/Math.PI;
+let dy=ry-yaw,dp=rp-pitch;
+if(dy>180)dy-=360;if(dy<-180)dy+=360;
+return{
+x:cvs.width/2+(dy/VAH)*(cvs.width/2),
+y:cvs.height/2+(dp/VAV)*(cvs.height/2),
+s:Math.max(0.3,Math.min(1.5,500/this.wz))
+};
+}
+dr(){
+if(!this.vis())return;
+let p=this.spos();if(!p)return;
+let sx=p.x,sy=p.y,ds=p.s;
+if(sx<-150||sx>cvs.width+150||sy<-150||sy>cvs.height+150)return;
+cx.save();cx.translate(sx,sy);cx.scale(this.sc*ds,this.sc*ds);
+let gs=this.sz*1.5+Math.sin(this.pp)*5;
+let g=cx.createRadialGradient(0,0,0,0,0,gs);
+g.addColorStop(0,this.type.cl+'40');g.addColorStop(1,'transparent');
+cx.fillStyle=g;cx.beginPath();cx.arc(0,0,gs,0,Math.PI*2);cx.fill();
+if(this.mh>1){
+cx.strokeStyle=this.type.cl+'60';cx.lineWidth=3;cx.beginPath();cx.arc(0,0,this.sz*0.7,0,Math.PI*2);cx.stroke();
+cx.strokeStyle=this.type.cl;cx.beginPath();cx.arc(0,0,this.sz*0.7,-Math.PI/2,-Math.PI/2+(this.hp/this.mh)*Math.PI*2);cx.stroke();
+}
+cx.font=this.sz+'px Arial';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(this.type.emoji,0,0);
+cx.fillStyle='rgba(255,255,255,0.7)';cx.font='bold 11px Arial';cx.fillText(Math.round(this.wz/10)+'cm',0,this.sz*0.9);
+cx.restore();
+}
+ht(){
+this.hp--;if(this.hp<=0){this.dead=true;return true}
+this.sc=1.3;setTimeout(()=>this.sc=1,100);return false;
+}
+ct(x,y){
+let p=this.spos();if(!p)return false;
+return Math.sqrt((x-p.x)**2+(y-p.y)**2)<this.sz*p.s;
+}
+}
+
+class Part{
+constructor(x,y,c){this.x=x;this.y=y;this.vx=(Math.random()-0.5)*8;this.vy=(Math.random()-0.5)*8;this.l=1;this.d=0.02+Math.random()*0.03;this.s=3+Math.random()*5;this.c=c}
+up(){this.x+=this.vx;this.y+=this.vy;this.vy+=0.2;this.l-=this.d}
+dr(){cx.globalAlpha=this.l;cx.fillStyle=this.c;cx.beginPath();cx.arc(this.x,this.y,this.s*this.l,0,Math.PI*2);cx.fill();cx.globalAlpha=1}
+}
+
+function ex(x,y,c,n=15){for(let i=0;i<n;i++)parts.push(new Part(x,y,c))}
+function sct(x,y,t){
+let e=document.createElement('div');e.className='combo';e.textContent=t;e.style.left=x+'px';e.style.top=y+'px';
+document.body.appendChild(e);setTimeout(()=>e.remove(),1000);
+}
+
+function sg(){
+if(!run)return;
+let mx=3+level*2;if(germs.length<mx)germs.push(new Germ);
+setTimeout(sg,Math.max(800,2500-level*200));
+}
+
+function lh(){
+health--;document.getElementById('hp').textContent='❤️'.repeat(health)+'🖤'.repeat(3-health);
+cvs.style.transform='translate(5px,5px)';setTimeout(()=>cvs.style.transform='translate(-5px,-5px)',50);setTimeout(()=>cvs.style.transform='',100);
+if(health<=0)go();else toast('Kuman lolos! Nyawa: '+health);
+}
+
+function us(p){
+let n=Date.now();
+if(n-lk<1500){combo++;if(combo>mc)mc=combo}else{combo=1}
+lk=n;
+let cm=Math.min(combo,5),fp=p*cm;score+=fp;
+document.getElementById('sc').textContent=score;
+let nl=Math.floor(score/200)+1;
+if(nl>level){level=nl;document.getElementById('lv').textContent=level;document.getElementById('lvl').classList.add('show');time+=15;toast('Level '+level+'! +15 detik');setTimeout(()=>document.getElementById('lvl').classList.remove('show'),1500)}
+return{combo:cm,points:fp};
+}
+
+function toast(m){
+let t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+function hi(e){
+if(!run)return;e.preventDefault();
+let r=cvs.getBoundingClientRect();
+let x=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
+let y=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+let hit=false;
+for(let i=germs.length-1;i>=0;i--){
+let g=germs[i];if(g.dead)continue;
+if(g.ct(x,y)){
+hit=true;
+if(g.type.bad){lh();let p=g.spos();ex(p.x,p.y,'#ff3b30',25);sct(x,y,'💀 -1❤️');g.dead=true;break}
+let k=g.ht();
+if(k){tk++;let r=us(g.type.pts);let p=g.spos();ex(p.x,p.y,g.type.cl,20);sct(x.y,r.combo>1?'🔥x'+r.combo+' +'+r.points:'+'+r.points);g.dead=true}
+else{let p=g.spos();ex(p.x,p.y,g.type.cl,5);sct(x,y,'💥')}
+break;
+}
+}
+if(!hit){ex(x,y,'#888',3);combo=0}
+}
+
+cvs.addEventListener('touchstart',hi,{passive:false});
+cvs.addEventListener('mousedown',hi);
+
+let glid=null,tmid=null;
+
+function loop(){
+if(!run)return;
+cx.clearRect(0,0,cvs.width,cvs.height);
+for(let i=germs.length-1;i>=0;i--){
+let g=germs[i];g.up();g.dr();
+if(g.dead){if(!g.type.bad)lh();germs.splice(i,1)}
+}
+for(let i=parts.length-1;i>=0;i--){let p=parts[i];p.up();p.dr();if(p.l<=0)parts.splice(i,1)}
+glid=requestAnimationFrame(loop);
+}
+
+function tm(){
+tmid=setInterval(()=>{
+if(!run)return;
+time--;document.getElementById('tm').textContent=time;
+if(time<=10)document.getElementById('tm').style.color='#ff3b30';
+if(time<=0)go();
+},1000);
+}
+
+function start(){
+score=0;level=1;time=60;health=3;germs=[];parts=[];combo=0;lk=0;tk=0;mc=0;run=true;
+document.getElementById('sc').textContent='0';
+document.getElementById('lv').textContent='1';
+document.getElementById('tm').textContent='60';
+document.getElementById('tm').style.color='#fff';
+document.getElementById('hp').textContent='❤️❤️❤️';
+document.getElementById('ss').classList.add('hidden');
+document.getElementById('gos').classList.remove('active');
+document.getElementById('hud').style.display='flex';
+document.getElementById('info').style.display='flex';
+if(glid)cancelAnimationFrame(glid);if(tmid)clearInterval(tmid);
+sg();loop();tm();
+toast('Berburu dimulai! Gerakkan HP!');
+}
+
+function go(){
+run=false;
+if(glid){cancelAnimationFrame(glid);glid=null}
+if(tmid){clearInterval(tmid);tmid=null}
+document.getElementById('fs').textContent=score;
+document.getElementById('fst').innerHTML='Kuman: '+tk+'<br>Level: '+level+'<br>Combo: x'+mc;
+document.getElementById('hud').style.display='none';
+document.getElementById('info').style.display='none';
+document.getElementById('gos').classList.add('active');
+}
+
+document.getElementById('st').addEventListener('click',()=>{sc().then(()=>{ig();clb()}).catch(()=>{esim();ig();clb()})});
+document.getElementById('sim').addEventListener('click',()=>{esim();ig();clb()});
+document.getElementById('rs').addEventListener('click',()=>{document.getElementById('gos').classList.remove('active');start()});
+</script>
 </body>
-</html>
+</html>q
