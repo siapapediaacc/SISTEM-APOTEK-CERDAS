@@ -2,30 +2,51 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Meteran Digital AI (KTP)</title>
+<title>Meteran Digital KTP (Advanced)</title>
+
 <script async src="https://docs.opencv.org/4.x/opencv.js"></script>
+
 <style>
 body { margin:0; background:#000; color:#0f0; font-family:Arial; }
-#canvas { position:absolute; top:0; left:0; }
-#ui {
-  position:fixed; bottom:10px; left:10px;
+
+video, canvas {
+  position:absolute;
+  top:0; left:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
 }
+
+#ui {
+  position:fixed;
+  bottom:10px;
+  left:10px;
+  z-index:10;
+}
+
 button {
-  padding:10px; margin:5px;
+  padding:10px;
+  margin:5px;
   font-size:14px;
+}
+
+#info {
+  background:rgba(0,0,0,0.6);
+  padding:5px;
+  margin-top:5px;
 }
 </style>
 </head>
 <body>
 
-<video id="video" autoplay playsinline style="display:none;"></video>
+<video id="video" autoplay playsinline></video>
 <canvas id="canvas"></canvas>
 
 <div id="ui">
   <button onclick="startCalibration()">Scan KTP</button>
-  <button onclick="measureMode()">Mode Ukur</button>
+  <button onclick="startMeasure()">Mode Ukur</button>
   <button onclick="resetPoints()">Reset</button>
-  <div id="info">Status: Idle</div>
+  <div id="info">Status: Loading...</div>
 </div>
 
 <script>
@@ -34,68 +55,102 @@ let canvas = document.getElementById('canvas');
 let ctx = canvas.getContext('2d');
 
 let scale = 0;
-let points = [];
 let measuring = false;
+let points = [];
+let cvReady = false;
 
-// START CAMERA
-navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+// ============================
+// INIT CAMERA (FIX BLACK SCREEN)
+// ============================
+navigator.mediaDevices.getUserMedia({
+  video: {
+    facingMode: "environment",
+    width: { ideal: 640 },
+    height: { ideal: 480 }
+  }
+})
 .then(stream => {
   video.srcObject = stream;
-  video.play();
+})
+.catch(err => {
+  alert("Kamera error: " + err);
 });
 
-// LOOP
-function processFrame() {
+// Tunggu video siap
+video.addEventListener('loadedmetadata', () => {
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
+  document.getElementById("info").innerText = "Kamera aktif";
+  requestAnimationFrame(processFrame);
+});
 
-  ctx.drawImage(video, 0, 0);
+// ============================
+// OPENCV READY
+// ============================
+cv['onRuntimeInitialized'] = () => {
+  cvReady = true;
+  console.log("OpenCV siap");
+};
 
-  if (typeof cv !== 'undefined') {
-    let src = cv.imread(canvas);
-    let gray = new cv.Mat();
-    let edges = new cv.Mat();
+// ============================
+// FRAME LOOP
+// ============================
+function processFrame() {
 
-    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-    cv.Canny(gray, edges, 50, 150);
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    let contours = new cv.MatVector();
-    let hierarchy = new cv.Mat();
+  if (cvReady) {
+    try {
+      let src = cv.imread(canvas);
+      let gray = new cv.Mat();
+      let edges = new cv.Mat();
 
-    cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+      cv.Canny(gray, edges, 50, 150);
 
-    let maxArea = 0;
-    let bestRect = null;
+      let contours = new cv.MatVector();
+      let hierarchy = new cv.Mat();
 
-    for (let i = 0; i < contours.size(); i++) {
-      let cnt = contours.get(i);
-      let area = cv.contourArea(cnt);
+      cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
-      if (area > maxArea) {
-        let approx = new cv.Mat();
-        cv.approxPolyDP(cnt, approx, 0.02 * cv.arcLength(cnt, true), true);
+      let maxArea = 0;
+      let bestRect = null;
 
-        if (approx.rows === 4) {
-          maxArea = area;
-          bestRect = approx;
+      for (let i = 0; i < contours.size(); i++) {
+        let cnt = contours.get(i);
+        let area = cv.contourArea(cnt);
+
+        if (area > maxArea) {
+          let approx = new cv.Mat();
+          cv.approxPolyDP(cnt, approx, 0.02 * cv.arcLength(cnt, true), true);
+
+          if (approx.rows === 4) {
+            maxArea = area;
+            bestRect = approx;
+          }
         }
       }
+
+      if (bestRect && scale === 0) {
+        drawRect(bestRect);
+
+        let w = distance(
+          bestRect.data32S[0], bestRect.data32S[1],
+          bestRect.data32S[2], bestRect.data32S[3]
+        );
+
+        scale = w / 8.56;
+
+        document.getElementById("info").innerText =
+          "KTP terdeteksi | Skala: " + scale.toFixed(2) + " px/cm";
+      }
+
+      src.delete(); gray.delete(); edges.delete();
+      contours.delete(); hierarchy.delete();
+
+    } catch (e) {
+      console.log(e);
     }
-
-    if (bestRect && !scale) {
-      drawRect(bestRect);
-
-      let width = distance(
-        bestRect.data32S[0], bestRect.data32S[1],
-        bestRect.data32S[2], bestRect.data32S[3]
-      );
-
-      scale = width / 8.56; // cm
-      document.getElementById('info').innerText = "Skala terdeteksi";
-    }
-
-    src.delete(); gray.delete(); edges.delete();
-    contours.delete(); hierarchy.delete();
   }
 
   drawPoints();
@@ -103,6 +158,9 @@ function processFrame() {
   requestAnimationFrame(processFrame);
 }
 
+// ============================
+// DRAW RECTANGLE (KTP)
+// ============================
 function drawRect(rect) {
   ctx.strokeStyle = "lime";
   ctx.lineWidth = 3;
@@ -120,27 +178,44 @@ function drawRect(rect) {
   }
 }
 
+// ============================
+// MEASURE MODE
+// ============================
+function startMeasure() {
+  if (!scale) {
+    alert("Scan KTP dulu!");
+    return;
+  }
+  measuring = true;
+  document.getElementById("info").innerText = "Mode ukur aktif";
+}
+
+// ============================
+// CALIBRATION
+// ============================
 function startCalibration() {
   scale = 0;
-  document.getElementById('info').innerText = "Scanning KTP...";
+  document.getElementById("info").innerText = "Arahkan ke KTP...";
 }
 
-function measureMode() {
-  measuring = true;
-  document.getElementById('info').innerText = "Mode Ukur Aktif";
-}
-
-canvas.addEventListener('click', function(e) {
+// ============================
+// CLICK INPUT
+// ============================
+canvas.addEventListener("click", function(e) {
   if (!measuring || !scale) return;
 
   let rect = canvas.getBoundingClientRect();
   let x = e.clientX - rect.left;
   let y = e.clientY - rect.top;
 
-  points.push({x,y});
+  points.push({x, y});
 });
 
+// ============================
+// DRAW POINTS + DISTANCE
+// ============================
 function drawPoints() {
+
   ctx.fillStyle = "red";
 
   for (let p of points) {
@@ -149,27 +224,37 @@ function drawPoints() {
     ctx.fill();
   }
 
-  if (points.length >= 2 && scale) {
+  if (points.length >= 2) {
     let p1 = points[points.length-2];
     let p2 = points[points.length-1];
 
     let d = distance(p1.x, p1.y, p2.x, p2.y);
     let cm = d / scale;
 
+    ctx.strokeStyle = "yellow";
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.stroke();
+
     ctx.fillStyle = "yellow";
-    ctx.fillText(cm.toFixed(2) + " cm", p2.x+10, p2.y);
+    ctx.fillText(cm.toFixed(2) + " cm", p2.x + 10, p2.y);
   }
 }
 
-function distance(x1,y1,x2,y2){
-  return Math.sqrt((x2-x1)**2 + (y2-y1)**2);
-}
-
-function resetPoints(){
+// ============================
+// RESET
+// ============================
+function resetPoints() {
   points = [];
 }
 
-video.addEventListener('play', processFrame);
+// ============================
+// DISTANCE
+// ============================
+function distance(x1,y1,x2,y2){
+  return Math.sqrt((x2-x1)**2 + (y2-y1)**2);
+}
 </script>
 
 </body>
