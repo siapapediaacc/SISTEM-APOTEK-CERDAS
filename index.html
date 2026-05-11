@@ -2,130 +2,187 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Measure Debug</title>
-
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2"></script>
+<title>Pro Measure (No AI)</title>
 
 <style>
-body { margin:0; background:black; color:white; font-family:sans-serif; }
+body { margin:0; background:black; font-family:sans-serif; }
 
 video, canvas {
   position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
+  top:0; left:0;
+  width:100%; height:100%;
   object-fit:cover;
 }
 
 canvas { z-index:2; }
-video { z-index:1; }
+
+.info {
+  position:fixed;
+  top:10px;
+  width:100%;
+  text-align:center;
+  color:white;
+  z-index:999;
+  font-size:14px;
+}
 
 .ui {
   position:fixed;
   bottom:20px;
-  left:50%;
-  transform:translateX(-50%);
+  width:100%;
+  text-align:center;
   z-index:999;
-  background:rgba(0,0,0,0.6);
-  padding:10px;
-  border-radius:15px;
 }
 
 button {
   padding:10px;
   margin:5px;
-  border:none;
   border-radius:10px;
-}
-
-.status {
-  position:fixed;
-  top:10px;
-  width:100%;
-  text-align:center;
-  z-index:999;
+  border:none;
 }
 </style>
 </head>
 
 <body>
 
-<div class="status" id="status">Klik layar untuk mulai</div>
+<div class="info" id="info">Arahkan ke kertas / objek persegi</div>
 
 <video id="video" autoplay playsinline></video>
 <canvas id="canvas"></canvas>
 
 <div class="ui">
-  <button onclick="startApp()">START</button>
+  <button onclick="calibrateKTP()">Kalibrasi KTP</button>
+  <button onclick="calibrateA4()">Kalibrasi A4</button>
 </div>
 
 <script>
 let video = document.getElementById("video");
 let canvas = document.getElementById("canvas");
 let ctx = canvas.getContext("2d");
-let statusText = document.getElementById("status");
 
-let model;
-let running = false;
+let scale = null;
 
-// WAJIB: trigger manual
-async function startApp() {
-  statusText.innerText = "Mengaktifkan kamera...";
+navigator.mediaDevices.getUserMedia({
+  video: { facingMode: "environment" }
+}).then(stream => {
+  video.srcObject = stream;
+});
 
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" }
-    });
-    video.srcObject = stream;
+video.onloadedmetadata = () => {
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  loop();
+};
 
-    video.onloadedmetadata = () => {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-    };
-
-    statusText.innerText = "Load AI model...";
-    model = await cocoSsd.load();
-
-    statusText.innerText = "AI aktif ✔";
-    running = true;
-    detect();
-
-  } catch (e) {
-    statusText.innerText = "ERROR: " + e.message;
-  }
-}
-
-async function detect() {
-  if (!running) return;
-
+function loop() {
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-  try {
-    const predictions = await model.detect(video);
+  let img = ctx.getImageData(0,0,canvas.width,canvas.height);
+  let data = img.data;
 
-    predictions.forEach(p => {
-      if (p.score > 0.6) {
-        let [x, y, w, h] = p.bbox;
+  let points = [];
 
-        ctx.strokeStyle = "lime";
-        ctx.lineWidth = 3;
-        ctx.strokeRect(x, y, w, h);
+  // cari titik kontras tinggi (edge sederhana)
+  for (let y=20; y<canvas.height-20; y+=5) {
+    for (let x=20; x<canvas.width-20; x+=5) {
 
-        ctx.fillStyle = "lime";
-        ctx.font = "16px Arial";
-        ctx.fillText(p.class, x, y - 5);
+      let i = (y*canvas.width + x)*4;
+      let b = (data[i]+data[i+1]+data[i+2])/3;
+
+      let i2 = ((y+5)*canvas.width + (x+5))*4;
+      let b2 = (data[i2]+data[i2+1]+data[i2+2])/3;
+
+      let diff = Math.abs(b - b2);
+
+      if (diff > 40) {
+        points.push({x,y});
       }
-    });
-
-    statusText.innerText = "Objek terdeteksi: " + predictions.length;
-
-  } catch (err) {
-    statusText.innerText = "Deteksi error";
+    }
   }
 
-  requestAnimationFrame(detect);
+  if (points.length > 50) {
+    let corners = getCorners(points);
+
+    drawPolygon(corners);
+
+    if (scale) {
+      measure(corners);
+    }
+  }
+
+  requestAnimationFrame(loop);
+}
+
+// ambil 4 sudut ekstrem
+function getCorners(points) {
+  let tl, tr, bl, br;
+
+  let minSum = Infinity, maxSum = -Infinity;
+  let minDiff = Infinity, maxDiff = -Infinity;
+
+  points.forEach(p => {
+    let sum = p.x + p.y;
+    let diff = p.x - p.y;
+
+    if (sum < minSum) { minSum = sum; tl = p; }
+    if (sum > maxSum) { maxSum = sum; br = p; }
+    if (diff < minDiff) { minDiff = diff; bl = p; }
+    if (diff > maxDiff) { maxDiff = diff; tr = p; }
+  });
+
+  return [tl, tr, br, bl];
+}
+
+function drawPolygon(c) {
+  ctx.beginPath();
+  ctx.moveTo(c[0].x, c[0].y);
+  ctx.lineTo(c[1].x, c[1].y);
+  ctx.lineTo(c[2].x, c[2].y);
+  ctx.lineTo(c[3].x, c[3].y);
+  ctx.closePath();
+
+  ctx.strokeStyle = "lime";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // titik
+  c.forEach(p => {
+    ctx.fillStyle = "red";
+    ctx.fillRect(p.x-3, p.y-3, 6, 6);
+  });
+}
+
+function distance(a,b){
+  return Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2);
+}
+
+function measure(c) {
+  let top = distance(c[0], c[1]);
+  let bottom = distance(c[3], c[2]);
+  let left = distance(c[0], c[3]);
+  let right = distance(c[1], c[2]);
+
+  let widthPx = (top + bottom) / 2;
+  let heightPx = (left + right) / 2;
+
+  let widthCm = widthPx * scale;
+  let heightCm = heightPx * scale;
+
+  let area = widthCm * heightCm;
+
+  document.getElementById("info").innerText =
+    `P: ${widthCm.toFixed(2)} cm | L: ${heightCm.toFixed(2)} cm | Luas: ${area.toFixed(2)} cm²`;
+}
+
+// kalibrasi
+function calibrateKTP() {
+  scale = 8.56 / 200; // estimasi awal
+  document.getElementById("info").innerText = "Kalibrasi KTP aktif";
+}
+
+function calibrateA4() {
+  scale = 21 / 300;
+  document.getElementById("info").innerText = "Kalibrasi A4 aktif";
 }
 </script>
 
