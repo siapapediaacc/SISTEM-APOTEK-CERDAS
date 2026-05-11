@@ -1,259 +1,125 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Meteran Digital KTP (Advanced)</title>
-
-<script async src="https://docs.opencv.org/4.x/opencv.js"></script>
-
+<meta charset="utf-8">
+<title>AR Measure</title>
 <style>
-body { margin:0; background:#000; color:#0f0; font-family:Arial; }
-
-video, canvas {
-  position:absolute;
-  top:0; left:0;
-  width:100%;
-  height:100%;
-  object-fit:cover;
-}
-
-#ui {
-  position:fixed;
-  bottom:10px;
-  left:10px;
-  z-index:10;
-}
-
-button {
-  padding:10px;
-  margin:5px;
-  font-size:14px;
-}
-
+body { margin:0; overflow:hidden; }
 #info {
-  background:rgba(0,0,0,0.6);
-  padding:5px;
-  margin-top:5px;
+  position:fixed;
+  top:10px;
+  left:10px;
+  color:white;
+  background:rgba(0,0,0,0.5);
+  padding:10px;
 }
 </style>
 </head>
 <body>
 
-<video id="video" autoplay playsinline></video>
-<canvas id="canvas"></canvas>
+<div id="info">Tap 2 titik untuk ukur</div>
 
-<div id="ui">
-  <button onclick="startCalibration()">Scan KTP</button>
-  <button onclick="startMeasure()">Mode Ukur</button>
-  <button onclick="resetPoints()">Reset</button>
-  <div id="info">Status: Loading...</div>
-</div>
+<script type="module">
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.158/build/three.module.js";
+import { ARButton } from "https://cdn.jsdelivr.net/npm/three@0.158/examples/jsm/webxr/ARButton.js";
 
-<script>
-let video = document.getElementById('video');
-let canvas = document.getElementById('canvas');
-let ctx = canvas.getContext('2d');
-
-let scale = 0;
-let measuring = false;
+let camera, scene, renderer;
 let points = [];
-let cvReady = false;
 
-// ============================
-// INIT CAMERA (FIX BLACK SCREEN)
-// ============================
-navigator.mediaDevices.getUserMedia({
-  video: {
-    facingMode: "environment",
-    width: { ideal: 640 },
-    height: { ideal: 480 }
+init();
+
+function init() {
+
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera();
+
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.xr.enabled = true;
+
+  document.body.appendChild(renderer.domElement);
+  document.body.appendChild(ARButton.createButton(renderer, {
+    requiredFeatures: ['hit-test']
+  }));
+
+  const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+  scene.add(light);
+
+  const controller = renderer.xr.getController(0);
+  controller.addEventListener("select", onSelect);
+  scene.add(controller);
+
+  renderer.setAnimationLoop(render);
+}
+
+let hitTestSource = null;
+let hitTestSourceRequested = false;
+
+function onSelect() {
+
+  if (!currentHit) return;
+
+  let pos = new THREE.Vector3();
+  pos.setFromMatrixPosition(currentHit.getPose(referenceSpace).transform.matrix);
+
+  points.push(pos);
+
+  if (points.length >= 2) {
+    let d = points[0].distanceTo(points[1]);
+
+    document.getElementById("info").innerText =
+      "Jarak: " + (d * 100).toFixed(2) + " cm";
+
+    drawLine(points[0], points[1]);
+    points = [];
   }
-})
-.then(stream => {
-  video.srcObject = stream;
-})
-.catch(err => {
-  alert("Kamera error: " + err);
-});
+}
 
-// Tunggu video siap
-video.addEventListener('loadedmetadata', () => {
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  document.getElementById("info").innerText = "Kamera aktif";
-  requestAnimationFrame(processFrame);
-});
+function drawLine(p1, p2) {
+  const material = new THREE.LineBasicMaterial({ color: 0x00ff00 });
 
-// ============================
-// OPENCV READY
-// ============================
-cv['onRuntimeInitialized'] = () => {
-  cvReady = true;
-  console.log("OpenCV siap");
-};
+  const geometry = new THREE.BufferGeometry().setFromPoints([p1, p2]);
 
-// ============================
-// FRAME LOOP
-// ============================
-function processFrame() {
+  const line = new THREE.Line(geometry, material);
+  scene.add(line);
+}
 
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+let currentHit = null;
+let referenceSpace;
 
-  if (cvReady) {
-    try {
-      let src = cv.imread(canvas);
-      let gray = new cv.Mat();
-      let edges = new cv.Mat();
+function render(timestamp, frame) {
 
-      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-      cv.Canny(gray, edges, 50, 150);
+  if (frame) {
 
-      let contours = new cv.MatVector();
-      let hierarchy = new cv.Mat();
+    const session = renderer.xr.getSession();
 
-      cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+    if (!hitTestSourceRequested) {
 
-      let maxArea = 0;
-      let bestRect = null;
+      session.requestReferenceSpace('viewer').then((refSpace) => {
+        session.requestHitTestSource({ space: refSpace }).then((source) => {
+          hitTestSource = source;
+        });
+      });
 
-      for (let i = 0; i < contours.size(); i++) {
-        let cnt = contours.get(i);
-        let area = cv.contourArea(cnt);
+      session.requestReferenceSpace('local').then((refSpace) => {
+        referenceSpace = refSpace;
+      });
 
-        if (area > maxArea) {
-          let approx = new cv.Mat();
-          cv.approxPolyDP(cnt, approx, 0.02 * cv.arcLength(cnt, true), true);
+      hitTestSourceRequested = true;
+    }
 
-          if (approx.rows === 4) {
-            maxArea = area;
-            bestRect = approx;
-          }
-        }
+    if (hitTestSource) {
+
+      const hitTestResults = frame.getHitTestResults(hitTestSource);
+
+      if (hitTestResults.length) {
+        currentHit = hitTestResults[0];
       }
-
-      if (bestRect && scale === 0) {
-        drawRect(bestRect);
-
-        let w = distance(
-          bestRect.data32S[0], bestRect.data32S[1],
-          bestRect.data32S[2], bestRect.data32S[3]
-        );
-
-        scale = w / 8.56;
-
-        document.getElementById("info").innerText =
-          "KTP terdeteksi | Skala: " + scale.toFixed(2) + " px/cm";
-      }
-
-      src.delete(); gray.delete(); edges.delete();
-      contours.delete(); hierarchy.delete();
-
-    } catch (e) {
-      console.log(e);
     }
   }
 
-  drawPoints();
-
-  requestAnimationFrame(processFrame);
-}
-
-// ============================
-// DRAW RECTANGLE (KTP)
-// ============================
-function drawRect(rect) {
-  ctx.strokeStyle = "lime";
-  ctx.lineWidth = 3;
-
-  for (let i = 0; i < 4; i++) {
-    let x1 = rect.data32S[i*2];
-    let y1 = rect.data32S[i*2+1];
-    let x2 = rect.data32S[((i+1)%4)*2];
-    let y2 = rect.data32S[((i+1)%4)*2+1];
-
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
-  }
-}
-
-// ============================
-// MEASURE MODE
-// ============================
-function startMeasure() {
-  if (!scale) {
-    alert("Scan KTP dulu!");
-    return;
-  }
-  measuring = true;
-  document.getElementById("info").innerText = "Mode ukur aktif";
-}
-
-// ============================
-// CALIBRATION
-// ============================
-function startCalibration() {
-  scale = 0;
-  document.getElementById("info").innerText = "Arahkan ke KTP...";
-}
-
-// ============================
-// CLICK INPUT
-// ============================
-canvas.addEventListener("click", function(e) {
-  if (!measuring || !scale) return;
-
-  let rect = canvas.getBoundingClientRect();
-  let x = e.clientX - rect.left;
-  let y = e.clientY - rect.top;
-
-  points.push({x, y});
-});
-
-// ============================
-// DRAW POINTS + DISTANCE
-// ============================
-function drawPoints() {
-
-  ctx.fillStyle = "red";
-
-  for (let p of points) {
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, 5, 0, Math.PI*2);
-    ctx.fill();
-  }
-
-  if (points.length >= 2) {
-    let p1 = points[points.length-2];
-    let p2 = points[points.length-1];
-
-    let d = distance(p1.x, p1.y, p2.x, p2.y);
-    let cm = d / scale;
-
-    ctx.strokeStyle = "yellow";
-    ctx.beginPath();
-    ctx.moveTo(p1.x, p1.y);
-    ctx.lineTo(p2.x, p2.y);
-    ctx.stroke();
-
-    ctx.fillStyle = "yellow";
-    ctx.fillText(cm.toFixed(2) + " cm", p2.x + 10, p2.y);
-  }
-}
-
-// ============================
-// RESET
-// ============================
-function resetPoints() {
-  points = [];
-}
-
-// ============================
-// DISTANCE
-// ============================
-function distance(x1,y1,x2,y2){
-  return Math.sqrt((x2-x1)**2 + (y2-y1)**2);
+  renderer.render(scene, camera);
 }
 </script>
 
