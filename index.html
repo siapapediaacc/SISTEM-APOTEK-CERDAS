@@ -2,32 +2,79 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>AR Building Measure Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoMeasure AI - Pengukuran Objek Otomatis</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #000;
-            overflow: hidden;
-            touch-action: none;
-            user-select: none;
-            -webkit-user-select: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #fff;
         }
 
-        #container {
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 30px 0;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            color: #8892b0;
+            font-size: 1.1em;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 25px;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 1100px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Video Section */
+        .video-section {
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .video-container {
             position: relative;
-            width: 100vw;
-            height: 100vh;
+            width: 100%;
+            background: #000;
+            border-radius: 15px;
+            overflow: hidden;
+            aspect-ratio: 16/9;
         }
 
-        #video {
+        #videoElement, #canvasOverlay {
             position: absolute;
             top: 0;
             left: 0;
@@ -36,1666 +83,1045 @@
             object-fit: cover;
         }
 
-        #canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+        #canvasOverlay {
+            pointer-events: none;
             z-index: 10;
-            cursor: crosshair;
         }
 
-        .ui-layer {
-            position: absolute;
-            z-index: 20;
-            pointer-events: none;
-            width: 100%;
-            height: 100%;
-        }
-
-        .top-bar {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            padding: 12px 16px;
-            padding-top: max(12px, env(safe-area-inset-top));
-            background: linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.4) 60%, transparent 100%);
+        .video-controls {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            pointer-events: auto;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
         }
 
-        .mode-selector {
-            display: flex;
-            gap: 4px;
-            background: rgba(60,60,67,0.6);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-radius: 20px;
-            padding: 3px;
-        }
-
-        .mode-btn {
-            padding: 7px 14px;
+        .btn {
+            padding: 12px 24px;
             border: none;
-            border-radius: 17px;
-            background: transparent;
-            color: rgba(255,255,255,0.7);
-            font-size: 13px;
-            font-weight: 500;
+            border-radius: 10px;
             cursor: pointer;
-            transition: all 0.25s ease;
-            white-space: nowrap;
-        }
-
-        .mode-btn.active {
-            background: #007AFF;
-            color: white;
-            box-shadow: 0 2px 8px rgba(0,122,255,0.4);
-        }
-
-        .top-actions {
-            display: flex;
-            gap: 8px;
-        }
-
-        .icon-btn {
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            background: rgba(60,60,67,0.6);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: none;
-            color: white;
-            font-size: 16px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-        }
-
-        .icon-btn:active {
-            transform: scale(0.92);
-            background: rgba(80,80,87,0.8);
-        }
-
-        .icon-btn.active-state {
-            background: #007AFF;
-        }
-
-        .measurement-display {
-            position: absolute;
-            top: 70px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 24px;
-            font-size: 22px;
-            font-weight: 700;
-            pointer-events: auto;
+            font-size: 0.95em;
+            font-weight: 600;
+            transition: all 0.3s ease;
             display: flex;
             align-items: center;
             gap: 8px;
-            border: 1px solid rgba(255,255,255,0.1);
-            min-width: 140px;
-            justify-content: center;
-        }
-
-        .measurement-display .value {
-            color: #34D399;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .unit-toggle {
-            background: rgba(255,255,255,0.15);
-            border: none;
-            color: white;
-            padding: 3px 10px;
-            border-radius: 12px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 600;
-            transition: all 0.2s;
-        }
-
-        .unit-toggle:active {
-            background: rgba(255,255,255,0.3);
-        }
-
-        .cal-badge {
-            position: absolute;
-            top: 120px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(245,158,11,0.85);
-            backdrop-filter: blur(10px);
-            color: white;
-            padding: 6px 14px;
-            border-radius: 16px;
-            font-size: 12px;
-            font-weight: 600;
-            pointer-events: auto;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            animation: pulse-badge 2s infinite;
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-
-        .cal-badge.calibrated {
-            background: rgba(16,185,129,0.85);
-            animation: none;
-        }
-
-        @keyframes pulse-badge {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-
-        .crosshair-container {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80px;
-            height: 80px;
-            pointer-events: none;
-            z-index: 15;
-        }
-
-        .crosshair {
-            width: 100%;
-            height: 100%;
-            position: relative;
-        }
-
-        .crosshair-line {
-            position: absolute;
-            background: rgba(255,255,255,0.6);
-        }
-
-        .crosshair-line.h {
-            width: 100%;
-            height: 1.5px;
-            top: 50%;
-            transform: translateY(-50%);
-        }
-
-        .crosshair-line.v {
-            width: 1.5px;
-            height: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-
-        .crosshair-dot {
-            position: absolute;
-            width: 6px;
-            height: 6px;
-            background: #007AFF;
-            border-radius: 50%;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 0 0 3px rgba(0,122,255,0.3), 0 0 15px rgba(0,122,255,0.5);
-        }
-
-        .instructions {
-            position: absolute;
-            bottom: 160px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.55);
-            backdrop-filter: blur(10px);
-            color: rgba(255,255,255,0.9);
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 13px;
-            text-align: center;
-            pointer-events: none;
-            white-space: nowrap;
-            transition: all 0.3s;
-        }
-
-        .bottom-controls {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            padding: 20px 24px;
-            padding-bottom: max(20px, env(safe-area-inset-bottom));
-            background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 50%, transparent 100%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 16px;
-            pointer-events: auto;
-        }
-
-        .action-row {
-            display: flex;
-            align-items: center;
-            gap: 32px;
-        }
-
-        .action-btn {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            background: rgba(60,60,67,0.6);
-            backdrop-filter: blur(20px);
-            border: none;
-            color: white;
-            font-size: 20px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-        }
-
-        .action-btn:active {
-            transform: scale(0.9);
-            background: rgba(80,80,87,0.8);
-        }
-
-        .action-btn:disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .capture-btn {
-            width: 68px;
-            height: 68px;
-            border-radius: 50%;
-            background: white;
-            border: 4px solid rgba(255,255,255,0.35);
-            cursor: pointer;
-            position: relative;
-            transition: all 0.15s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .capture-btn:active {
-            transform: scale(0.92);
-        }
-
-        .capture-btn::after {
-            content: '';
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            background: white;
-            transition: all 0.2s;
-        }
-
-        .capture-btn.save-mode::after {
-            background: #34D399;
-        }
-
-        .level-container {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 200px;
-            height: 200px;
-            display: none;
-            pointer-events: none;
-        }
-
-        .level-container.active {
-            display: block;
-        }
-
-        .level-circle {
-            width: 100%;
-            height: 100%;
-            border: 3px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            position: relative;
-            background: rgba(0,0,0,0.3);
-            backdrop-filter: blur(5px);
-        }
-
-        .level-grid {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 100%;
-            height: 1px;
-            background: rgba(255,255,255,0.15);
-            transform: translate(-50%, -50%);
-        }
-
-        .level-grid.v {
-            width: 1px;
-            height: 100%;
-        }
-
-        .level-bubble {
-            position: absolute;
-            width: 30px;
-            height: 30px;
-            background: #34D399;
-            border-radius: 50%;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 0 20px rgba(52,211,153,0.5);
-            transition: transform 0.1s ease-out;
-        }
-
-        .level-bubble.off-level {
-            background: #F59E0B;
-            box-shadow: 0 0 20px rgba(245,158,11,0.5);
-        }
-
-        .level-value {
-            position: absolute;
-            bottom: -40px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: white;
-            font-size: 16px;
-            font-weight: 600;
-            background: rgba(0,0,0,0.6);
-            padding: 4px 12px;
-            border-radius: 12px;
-        }
-
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.7);
-            z-index: 100;
-            justify-content: center;
-            align-items: flex-end;
-            backdrop-filter: blur(5px);
-        }
-
-        .modal-overlay.active {
-            display: flex;
-        }
-
-        .modal-sheet {
-            background: #1C1C1E;
-            width: 100%;
-            max-width: 500px;
-            border-radius: 24px 24px 0 0;
-            padding: 24px;
-            padding-bottom: max(24px, env(safe-area-inset-bottom));
-            animation: slide-up 0.3s ease;
-            max-height: 85vh;
-            overflow-y: auto;
-        }
-
-        @keyframes slide-up {
-            from { transform: translateY(100%); }
-            to { transform: translateY(0); }
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .modal-title {
-            font-size: 20px;
-            font-weight: 700;
-            color: white;
-        }
-
-        .modal-close {
-            background: rgba(255,255,255,0.1);
-            border: none;
-            color: white;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            font-size: 18px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .cal-option {
-            background: rgba(255,255,255,0.06);
-            border-radius: 16px;
-            padding: 16px;
-            margin-bottom: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: 2px solid transparent;
-        }
-
-        .cal-option:hover, .cal-option:active {
-            background: rgba(255,255,255,0.1);
-            border-color: #007AFF;
-        }
-
-        .cal-option-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 6px;
-        }
-
-        .cal-option-icon {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
-            background: rgba(0,122,255,0.2);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 22px;
-        }
-
-        .cal-option-title {
-            color: white;
-            font-size: 16px;
-            font-weight: 600;
-        }
-
-        .cal-option-desc {
-            color: rgba(255,255,255,0.5);
-            font-size: 13px;
-            margin-left: 56px;
-        }
-
-        .cal-manual {
-            margin-top: 16px;
-            padding-top: 16px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .cal-manual-title {
-            color: rgba(255,255,255,0.7);
-            font-size: 14px;
-            margin-bottom: 12px;
-        }
-
-        .input-group {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 12px;
-        }
-
-        .cal-input {
-            flex: 1;
-            padding: 12px 16px;
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.15);
-            background: rgba(255,255,255,0.05);
-            color: white;
-            font-size: 16px;
-            outline: none;
-        }
-
-        .cal-input:focus {
-            border-color: #007AFF;
-        }
-
-        .cal-input::placeholder {
-            color: rgba(255,255,255,0.3);
         }
 
         .btn-primary {
-            width: 100%;
-            padding: 14px;
-            border-radius: 12px;
-            border: none;
-            background: #007AFF;
-            color: white;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            color: #fff;
         }
 
-        .btn-primary:active {
-            background: #0051D5;
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 212, 255, 0.3);
         }
 
         .btn-secondary {
-            width: 100%;
-            padding: 14px;
-            border-radius: 12px;
-            border: none;
             background: rgba(255,255,255,0.1);
-            color: white;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-top: 8px;
-            transition: all 0.2s;
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.2);
         }
 
-        .guide-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 80;
-            pointer-events: none;
-        }
-
-        .guide-overlay.active {
-            display: block;
-        }
-
-        .guide-frame {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 280px;
-            height: 180px;
-            border: 3px solid #007AFF;
-            border-radius: 12px;
-            box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);
-        }
-
-        .guide-text {
-            position: absolute;
-            bottom: 30%;
-            left: 50%;
-            transform: translateX(-50%);
-            color: white;
-            font-size: 16px;
-            font-weight: 600;
-            text-align: center;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
-            width: 80%;
-        }
-
-        .guide-btn-area {
-            position: absolute;
-            bottom: 15%;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 12px;
-            pointer-events: auto;
-        }
-
-        .guide-btn {
-            padding: 12px 24px;
-            border-radius: 12px;
-            border: none;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        .guide-btn.primary {
-            background: #007AFF;
-            color: white;
-        }
-
-        .guide-btn.secondary {
+        .btn-secondary:hover {
             background: rgba(255,255,255,0.2);
-            color: white;
         }
 
-        .history-panel {
-            position: absolute;
-            top: 0;
-            right: -100%;
-            width: 85%;
-            max-width: 360px;
-            height: 100%;
-            background: rgba(28,28,30,0.95);
-            backdrop-filter: blur(30px);
-            z-index: 50;
-            transition: right 0.3s ease;
+        .btn-success {
+            background: linear-gradient(135deg, #00c853, #00a843);
+            color: #fff;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff1744, #d50000);
+            color: #fff;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Sidebar */
+        .sidebar {
             display: flex;
             flex-direction: column;
-            padding-top: env(safe-area-inset-top);
+            gap: 20px;
         }
 
-        .history-panel.active {
-            right: 0;
-        }
-
-        .history-header {
-            padding: 16px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .history-title {
-            color: white;
-            font-size: 18px;
-            font-weight: 700;
-        }
-
-        .history-close {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-            width: 36px;
-            height: 36px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .history-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 12px;
-        }
-
-        .history-item {
+        .panel {
             background: rgba(255,255,255,0.05);
-            border-radius: 14px;
-            padding: 14px;
-            margin-bottom: 10px;
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .panel h3 {
+            font-size: 1.1em;
+            margin-bottom: 15px;
+            color: #00d4ff;
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            gap: 8px;
         }
 
-        .history-info {
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.9em;
+            color: #8892b0;
+        }
+
+        .form-group select, .form-group input {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 0.95em;
+        }
+
+        .form-group select:focus, .form-group input:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+
+        /* Results */
+        .result-item {
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 3px solid #00d4ff;
+        }
+
+        .result-item .obj-name {
+            font-weight: 600;
+            color: #00d4ff;
+            font-size: 1em;
+        }
+
+        .result-item .dimensions {
             display: flex;
-            flex-direction: column;
-            gap: 4px;
+            gap: 15px;
+            margin-top: 8px;
+            font-size: 0.9em;
         }
 
-        .history-type {
-            color: rgba(255,255,255,0.5);
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        .dim-box {
+            background: rgba(0,212,255,0.1);
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(0,212,255,0.3);
         }
 
-        .history-time {
-            color: rgba(255,255,255,0.4);
-            font-size: 11px;
+        .dim-box span {
+            color: #00d4ff;
+            font-weight: 600;
         }
 
-        .history-value {
-            color: #34D399;
-            font-size: 20px;
+        /* Distance Result */
+        .distance-result {
+            background: linear-gradient(135deg, rgba(123, 44, 191, 0.2), rgba(0, 212, 255, 0.1));
+            border: 1px solid rgba(123, 44, 191, 0.5);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .distance-result .value {
+            font-size: 2.5em;
             font-weight: 700;
-            font-variant-numeric: tabular-nums;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
-        .history-empty {
-            color: rgba(255,255,255,0.3);
-            text-align: center;
-            padding: 60px 20px;
-            font-size: 14px;
+        .distance-result .unit {
+            color: #8892b0;
+            font-size: 0.9em;
         }
 
-        .toast {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) scale(0.9);
-            background: rgba(0,0,0,0.85);
-            backdrop-filter: blur(20px);
-            color: white;
-            padding: 14px 28px;
-            border-radius: 24px;
-            font-size: 15px;
+        /* Status Badge */
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85em;
             font-weight: 500;
-            z-index: 200;
-            opacity: 0;
-            transition: all 0.3s;
-            pointer-events: none;
-            text-align: center;
-            max-width: 80%;
         }
 
-        .toast.show {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
+        .status.online {
+            background: rgba(0, 200, 83, 0.2);
+            color: #00c853;
+            border: 1px solid rgba(0, 200, 83, 0.3);
         }
 
-        .loading-screen {
-            position: fixed;
+        .status.offline {
+            background: rgba(255, 23, 68, 0.2);
+            color: #ff1744;
+            border: 1px solid rgba(255, 23, 68, 0.3);
+        }
+
+        .status.loading {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+            border: 1px solid rgba(255, 193, 7, 0.3);
+        }
+
+        /* Manual Mode */
+        .manual-mode-info {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+            color: #ffc107;
+        }
+
+        /* Instructions */
+        .instructions {
+            background: rgba(0, 212, 255, 0.05);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .instructions h4 {
+            color: #00d4ff;
+            margin-bottom: 10px;
+        }
+
+        .instructions ol {
+            padding-left: 20px;
+            color: #8892b0;
+            line-height: 1.8;
+        }
+
+        .instructions ol li {
+            margin-bottom: 5px;
+        }
+
+        /* Loading */
+        .loading-overlay {
+            position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: #000;
+            background: rgba(0,0,0,0.8);
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
-            z-index: 300;
-            color: white;
-            transition: opacity 0.5s;
+            justify-content: center;
+            z-index: 100;
+            border-radius: 15px;
         }
 
-        .loading-screen.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .loading-ring {
+        .spinner {
             width: 50px;
             height: 50px;
-            border: 3px solid rgba(255,255,255,0.15);
-            border-top-color: #007AFF;
+            border: 4px solid rgba(0,212,255,0.2);
+            border-top-color: #00d4ff;
             border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin-bottom: 20px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
         }
 
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
 
-        .loading-text {
-            font-size: 16px;
-            font-weight: 500;
-            margin-bottom: 8px;
+        /* Point markers for manual mode */
+        .point-marker {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #00d4ff;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 20;
+            box-shadow: 0 0 10px rgba(0,212,255,0.5);
         }
 
-        .loading-sub {
-            font-size: 13px;
+        /* Toggle Switch */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 13px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: #00d4ff;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            background: #fff;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s;
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(24px);
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #8892b0;
+        }
+
+        .empty-state svg {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 15px;
             opacity: 0.5;
         }
 
-        @media (max-width: 380px) {
-            .mode-btn {
-                padding: 6px 10px;
-                font-size: 12px;
-            }
-            .measurement-display {
-                font-size: 18px;
-                padding: 8px 16px;
-            }
+        /* Log */
+        .log-container {
+            max-height: 200px;
+            overflow-y: auto;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8em;
+            color: #8892b0;
+        }
+
+        .log-entry {
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .log-entry.success { color: #00c853; }
+        .log-entry.error { color: #ff1744; }
+        .log-entry.info { color: #00d4ff; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            header h1 { font-size: 1.8em; }
+            .video-controls { justify-content: center; }
+            .btn { padding: 10px 18px; font-size: 0.85em; }
         }
     </style>
 </head>
 <body>
+    <div class="container">
+        <header>
+            <h1>📐 AutoMeasure AI</h1>
+            <p>Pengukuran Panjang, Lebar & Jarak Antar Objek Secara Otomatis</p>
+        </header>
 
-    <div class="loading-screen" id="loadingScreen">
-        <div class="loading-ring"></div>
-        <div class="loading-text">Memuat Kamera</div>
-        <div class="loading-sub">Izinkan akses kamera untuk melanjutkan</div>
-    </div>
-
-    <div id="container">
-        <video id="video" autoplay playsinline muted></video>
-        <canvas id="canvas"></canvas>
-
-        <div class="ui-layer">
-            <div class="top-bar">
-                <div class="mode-selector">
-                    <button class="mode-btn active" data-mode="distance">Jarak</button>
-                    <button class="mode-btn" data-mode="area">Area</button>
-                    <button class="mode-btn" data-mode="level">Level</button>
+        <div class="main-grid">
+            <!-- Video Section -->
+            <div class="video-section">
+                <div class="video-container" id="videoContainer">
+                    <video id="videoElement" autoplay playsinline></video>
+                    <canvas id="canvasOverlay"></canvas>
+                    <div class="loading-overlay" id="loadingOverlay">
+                        <div class="spinner"></div>
+                        <p>Memuat model AI...</p>
+                    </div>
                 </div>
-                <div class="top-actions">
-                    <button class="icon-btn" id="flashBtn">⚡</button>
-                    <button class="icon-btn" id="historyBtn">📋</button>
+
+                <div class="video-controls">
+                    <button class="btn btn-primary" id="btnStart" onclick="startCamera()">
+                        ▶️ Mulai Kamera
+                    </button>
+                    <button class="btn btn-secondary" id="btnStop" onclick="stopCamera()" disabled>
+                        ⏹️ Stop
+                    </button>
+                    <button class="btn btn-success" id="btnCapture" onclick="captureAndMeasure()" disabled>
+                        📸 Ukur Objek
+                    </button>
+                    <button class="btn btn-danger" id="btnReset" onclick="resetMeasurement()">
+                        🔄 Reset
+                    </button>
+                </div>
+
+                <div class="instructions">
+                    <h4>📖 Cara Penggunaan</h4>
+                    <ol>
+                        <li><strong>Siapkan objek referensi</strong> (kartu kredit, koin, atau objek berukuran standar) di samping objek yang akan diukur</li>
+                        <li><strong>Klik "Mulai Kamera"</strong> dan izinkan akses kamera</li>
+                        <li><strong>Pilih objek referensi</strong> dari dropdown di panel kanan</li>
+                        <li><strong>Klik "Ukur Objek"</strong> untuk mendeteksi dan mengukur otomatis</li>
+                        <li>Untuk jarak antar objek, aktifkan mode "Jarak Antar Objek"</li>
+                        <li>Gunakan <strong>Mode Manual</strong> jika objek tidak terdeteksi AI</li>
+                    </ol>
                 </div>
             </div>
 
-            <div class="measurement-display" id="measurementDisplay">
-                <span class="value" id="currentValue">0.00</span>
-                <button class="unit-toggle" id="unitToggle">m</button>
-            </div>
-
-            <div class="cal-badge" id="calBadge">
-                <span>⚠️</span>
-                <span id="calText">Kalibrasi diperlukan</span>
-            </div>
-
-            <div class="crosshair-container" id="crosshairContainer">
-                <div class="crosshair">
-                    <div class="crosshair-line h"></div>
-                    <div class="crosshair-line v"></div>
-                    <div class="crosshair-dot"></div>
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- Status Panel -->
+                <div class="panel">
+                    <h3>🔌 Status Sistem</h3>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <span class="status offline" id="statusCamera">📷 Kamera</span>
+                        <span class="status offline" id="statusAI">🤖 AI Model</span>
+                    </div>
                 </div>
-            </div>
 
-            <div class="level-container" id="levelContainer">
-                <div class="level-circle">
-                    <div class="level-grid"></div>
-                    <div class="level-grid v"></div>
-                    <div class="level-bubble" id="levelBubble"></div>
+                <!-- Settings Panel -->
+                <div class="panel">
+                    <h3>⚙️ Pengaturan</h3>
+                    
+                    <div class="toggle-container">
+                        <label>Mode Jarak Antar Objek</label>
+                        <div class="toggle-switch" id="toggleDistance" onclick="toggleDistanceMode()"></div>
+                    </div>
+
+                    <div class="toggle-container">
+                        <label>Mode Manual (Klik Titik)</label>
+                        <div class="toggle-switch" id="toggleManual" onclick="toggleManualMode()"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Objek Referensi</label>
+                        <select id="referenceObject" onchange="updateReference()">
+                            <option value="credit_card">💳 Kartu Kredit (85.6 × 54 mm)</option>
+                            <option value="id_card">🪪 Kartu ID/KTP (85.6 × 54 mm)</option>
+                            <option value="coin_1000">🪙 Koin Rp 1.000 (24.5 mm)</option>
+                            <option value="coin_500">🪙 Koin Rp 500 (27 mm)</option>
+                            <option value="a4_paper">📄 Kertas A4 (297 × 210 mm)</option>
+                            <option value="custom">📏 Ukuran Kustom</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="customSizeGroup" style="display:none;">
+                        <label>Lebar Objek Referensi (mm)</label>
+                        <input type="number" id="customWidth" value="50" min="1">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Confidence Threshold (%)</label>
+                        <input type="range" id="confidenceThreshold" min="10" max="90" value="50" 
+                               oninput="document.getElementById('confValue').textContent = this.value + '%'">
+                        <span id="confValue" style="color: #00d4ff; font-weight: 600;">50%</span>
+                    </div>
                 </div>
-                <div class="level-value" id="levelValue">0.0°</div>
-            </div>
 
-            <div class="instructions" id="instructions">
-                Ketuk layar untuk titik pertama
-            </div>
+                <!-- Results Panel -->
+                <div class="panel">
+                    <h3>📊 Hasil Pengukuran</h3>
+                    <div id="resultsContainer">
+                        <div class="empty-state">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                <line x1="3" y1="9" x2="21" y2="9"/>
+                                <line x1="9" y1="21" x2="9" y2="9"/>
+                            </svg>
+                            <p>Belum ada pengukuran. Klik "Ukur Objek" untuk memulai.</p>
+                        </div>
+                    </div>
+                </div>
 
-            <div class="bottom-controls">
-                <div class="action-row">
-                    <button class="action-btn" id="undoBtn" disabled title="Undo">↩️</button>
-                    <button class="capture-btn" id="captureBtn" title="Simpan / Capture"></button>
-                    <button class="action-btn" id="clearBtn" title="Hapus">🗑️</button>
+                <!-- Distance Result -->
+                <div class="panel" id="distancePanel" style="display: none;">
+                    <h3>↔️ Jarak Antar Objek</h3>
+                    <div class="distance-result">
+                        <div class="value" id="distanceValue">-</div>
+                        <div class="unit" id="distanceUnit">mm</div>
+                    </div>
+                </div>
+
+                <!-- Log Panel -->
+                <div class="panel">
+                    <h3>📝 Log Aktivitas</h3>
+                    <div class="log-container" id="logContainer">
+                        <div class="log-entry info">Aplikasi siap digunakan...</div>
+                    </div>
                 </div>
             </div>
         </div>
-
-        <div class="guide-overlay" id="guideOverlay">
-            <div class="guide-frame"></div>
-            <div class="guide-text" id="guideText">
-                Letakkan kartu kredit di dalam bingkai<br>
-                Pastikan terlihat jelas
-            </div>
-            <div class="guide-btn-area">
-                <button class="guide-btn secondary" id="guideCancel">Batal</button>
-                <button class="guide-btn primary" id="guideConfirm">Sudah Pas</button>
-            </div>
-        </div>
-
-        <div class="modal-overlay" id="calModal">
-            <div class="modal-sheet">
-                <div class="modal-header">
-                    <h3 class="modal-title">Kalibrasi Cepat</h3>
-                    <button class="modal-close" id="closeCalModal">✕</button>
-                </div>
-
-                <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 16px; line-height: 1.5;">
-                    Pilih objek referensi yang Anda miliki untuk kalibrasi otomatis. Pastikan kamera sejajar dengan objek.
-                </p>
-
-                <div class="cal-option" data-ref="creditcard">
-                    <div class="cal-option-header">
-                        <div class="cal-option-icon">💳</div>
-                        <div class="cal-option-title">Kartu Kredit / ATM</div>
-                    </div>
-                    <div class="cal-option-desc">Ukuran standar: 8.56 cm x 5.40 cm</div>
-                </div>
-
-                <div class="cal-option" data-ref="idcard">
-                    <div class="cal-option-header">
-                        <div class="cal-option-icon">🪪</div>
-                        <div class="cal-option-title">KTP / SIM</div>
-                    </div>
-                    <div class="cal-option-desc">Ukuran standar: 8.50 cm x 5.40 cm</div>
-                </div>
-
-                <div class="cal-option" data-ref="a4width">
-                    <div class="cal-option-header">
-                        <div class="cal-option-icon">📄</div>
-                        <div class="cal-option-title">Kertas A4 (lebar)</div>
-                    </div>
-                    <div class="cal-option-desc">Lebar kertas A4: 21.0 cm</div>
-                </div>
-
-                <div class="cal-option" data-ref="ruler">
-                    <div class="cal-option-header">
-                        <div class="cal-option-icon">📏</div>
-                        <div class="cal-option-title">Penggaris / Mistar</div>
-                    </div>
-                    <div class="cal-option-desc">Gunakan penggaris sebagai referensi</div>
-                </div>
-
-                <div class="cal-manual">
-                    <div class="cal-manual-title">Atau masukkan jarak ke objek:</div>
-                    <div class="input-group">
-                        <input type="number" class="cal-input" id="manualDistance" placeholder="Contoh: 1.5" step="0.1" min="0.1">
-                        <span style="color: rgba(255,255,255,0.5); display: flex; align-items: center; font-size: 14px;">meter</span>
-                    </div>
-                    <button class="btn-primary" id="manualCalBtn">Kalibrasi Manual</button>
-                </div>
-
-                <button class="btn-secondary" id="resetCalBtn">Reset Kalibrasi</button>
-            </div>
-        </div>
-
-        <div class="history-panel" id="historyPanel">
-            <div class="history-header">
-                <span class="history-title">Riwayat Pengukuran</span>
-                <button class="history-close" id="closeHistory">✕</button>
-            </div>
-            <div class="history-list" id="historyList">
-                <div class="history-empty">Belum ada pengukuran</div>
-            </div>
-        </div>
-
-        <div class="toast" id="toast"></div>
     </div>
 
     <script>
-        const state = {
-            mode: 'distance',
-            unit: 'm',
-            points: [],
-            tempPoints: [],
-            measurements: [],
-            calibration: {
-                isCalibrated: false,
-                pixelsPerMeter: null,
-                referenceName: '',
-                referenceSize: 0
-            },
-            isCalibrating: false,
-            calReference: null,
-            currentDistance: 0,
-            stream: null,
-            deviceOrientation: { alpha: 0, beta: 0, gamma: 0 },
-            canvasReady: false
+        // ==================== GLOBAL VARIABLES ====================
+        let video = document.getElementById('videoElement');
+        let canvas = document.getElementById('canvasOverlay');
+        let ctx = canvas.getContext('2d');
+        let model = null;
+        let stream = null;
+        let isDetecting = false;
+        let distanceMode = false;
+        let manualMode = false;
+        let manualPoints = [];
+        let pixelToMmRatio = 0;
+        let detectedObjects = [];
+        let referenceObj = null;
+        
+        // Reference object sizes (width in mm)
+        const REFERENCE_SIZES = {
+            credit_card: { width: 85.6, height: 53.98, name: 'Kartu Kredit' },
+            id_card: { width: 85.6, height: 54, name: 'Kartu ID' },
+            coin_1000: { width: 24.5, height: 24.5, name: 'Koin Rp 1.000' },
+            coin_500: { width: 27, height: 27, name: 'Koin Rp 500' },
+            a4_paper: { width: 210, height: 297, name: 'Kertas A4' },
+            custom: { width: 50, height: 50, name: 'Kustom' }
         };
 
-        const REFERENCE_OBJECTS = {
-            creditcard: { name: 'Kartu Kredit', width: 0.0856, height: 0.0540 },
-            idcard: { name: 'KTP/SIM', width: 0.0850, height: 0.0540 },
-            a4width: { name: 'Kertas A4', width: 0.210, height: 0.297 },
-            ruler: { name: 'Penggaris', width: 0.30, height: 0.03 }
-        };
-
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        const loadingScreen = document.getElementById('loadingScreen');
-        const toast = document.getElementById('toast');
-
-        async function initCamera() {
+        // ==================== INITIALIZATION ====================
+        async function init() {
+            log('Memuat model COCO-SSD...', 'info');
             try {
-                const constraints = {
-                    video: {
-                        facingMode: { ideal: 'environment' },
+                model = await cocoSsd.load();
+                updateStatus('statusAI', 'online', '🤖 AI Model');
+                log('Model AI berhasil dimuat!', 'success');
+                document.getElementById('loadingOverlay').style.display = 'none';
+            } catch (err) {
+                log('Gagal memuat model: ' + err.message, 'error');
+                document.getElementById('loadingOverlay').innerHTML = 
+                    '<p style="color:#ff1744">Gagal memuat model AI.<br>Periksa koneksi internet.</p>';
+            }
+        }
+
+        // ==================== CAMERA FUNCTIONS ====================
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment',
                         width: { ideal: 1920 },
                         height: { ideal: 1080 }
-                    }
-                };
-
-                state.stream = await navigator.mediaDevices.getUserMedia(constraints);
-                video.srcObject = state.stream;
+                    } 
+                });
+                video.srcObject = stream;
+                await video.play();
                 
+                // Set canvas size to match video
                 video.onloadedmetadata = () => {
-                    canvas.width = video.videoWidth || window.innerWidth * 2;
-                    canvas.height = video.videoHeight || window.innerHeight * 2;
-                    state.canvasReady = true;
-                    loadingScreen.classList.add('hidden');
-                    setTimeout(() => loadingScreen.style.display = 'none', 500);
-                    showToast('Kamera siap! Ketuk layar untuk mulai mengukur');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
                 };
+                
+                document.getElementById('btnStart').disabled = true;
+                document.getElementById('btnStop').disabled = false;
+                document.getElementById('btnCapture').disabled = false;
+                updateStatus('statusCamera', 'online', '📷 Kamera');
+                log('Kamera aktif', 'success');
             } catch (err) {
-                console.error('Camera error:', err);
-                loadingScreen.innerHTML = `
-                    <div style="text-align: center; padding: 20px;">
-                        <div style="font-size: 40px; margin-bottom: 16px;">📷</div>
-                        <div style="font-size: 18px; margin-bottom: 8px; color: #ff3b30;">Gagal mengakses kamera</div>
-                        <div style="font-size: 14px; opacity: 0.6;">
-                            Pastikan Anda menggunakan HTTPS dan memberikan izin kamera
+                log('Gagal mengakses kamera: ' + err.message, 'error');
+                alert('Tidak dapat mengakses kamera. Pastikan Anda memberikan izin kamera.');
+            }
+        }
+
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            video.srcObject = null;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            document.getElementById('btnStart').disabled = false;
+            document.getElementById('btnStop').disabled = true;
+            document.getElementById('btnCapture').disabled = true;
+            updateStatus('statusCamera', 'offline', '📷 Kamera');
+            log('Kamera dimatikan', 'info');
+        }
+
+        // ==================== DETECTION & MEASUREMENT ====================
+        async function captureAndMeasure() {
+            if (!model || !stream) {
+                log('Kamera atau model belum siap', 'error');
+                return;
+            }
+
+            const threshold = document.getElementById('confidenceThreshold').value / 100;
+            
+            log('Mendeteksi objek...', 'info');
+            
+            try {
+                const predictions = await model.detect(video);
+                const filtered = predictions.filter(p => p.score >= threshold);
+                
+                detectedObjects = [];
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                if (filtered.length === 0) {
+                    log('Tidak ada objek terdeteksi. Coba mode manual.', 'error');
+                    return;
+                }
+
+                // Draw all detections
+                filtered.forEach((pred, index) => {
+                    const [x, y, width, height] = pred.bbox;
+                    const isReference = isReferenceObject(pred.class);
+                    
+                    const obj = {
+                        id: index,
+                        class: pred.class,
+                        score: pred.score,
+                        bbox: pred.bbox,
+                        isReference: isReference,
+                        widthMm: 0,
+                        heightMm: 0
+                    };
+                    
+                    detectedObjects.push(obj);
+                    
+                    // Draw bounding box
+                    ctx.strokeStyle = isReference ? '#00c853' : '#00d4ff';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(x, y, width, height);
+                    
+                    // Draw label background
+                    ctx.fillStyle = isReference ? 'rgba(0, 200, 83, 0.8)' : 'rgba(0, 212, 255, 0.8)';
+                    const label = isReference ? `📏 REF: ${pred.class}` : `${pred.class} (${(pred.score*100).toFixed(0)}%)`;
+                    const textWidth = ctx.measureText(label).width + 10;
+                    ctx.fillRect(x, y - 25, textWidth, 25);
+                    
+                    // Draw label text
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 14px Arial';
+                    ctx.fillText(label, x + 5, y - 7);
+                    
+                    // Draw dimension lines if we have ratio
+                    if (pixelToMmRatio > 0 || isReference) {
+                        drawDimensionLines(obj, width, height);
+                    }
+                });
+
+                // Calculate measurements
+                calculateMeasurements();
+                
+                // If distance mode, calculate distances between objects
+                if (distanceMode && detectedObjects.length >= 2) {
+                    calculateDistances();
+                }
+                
+                log(`Terdeteksi ${filtered.length} objek`, 'success');
+                
+            } catch (err) {
+                log('Error deteksi: ' + err.message, 'error');
+            }
+        }
+
+        function isReferenceObject(className) {
+            const refType = document.getElementById('referenceObject').value;
+            const refNames = {
+                credit_card: ['cell phone', 'book', 'laptop'], // Approximate matches
+                id_card: ['cell phone', 'book'],
+                coin_1000: ['frisbee', 'sports ball', 'clock'],
+                coin_500: ['frisbee', 'sports ball', 'clock'],
+                a4_paper: ['book', 'laptop', 'keyboard']
+            };
+            
+            // Simple heuristic: if only one object and it's rectangular, treat as reference
+            // In real app, user would select which object is reference
+            return false; // Let user manually identify via UI
+        }
+
+        function drawDimensionLines(obj, width, height) {
+            const [x, y] = obj.bbox;
+            
+            // Draw width line
+            ctx.strokeStyle = '#ff1744';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            
+            // Width line (top)
+            ctx.beginPath();
+            ctx.moveTo(x, y - 10);
+            ctx.lineTo(x + width, y - 10);
+            ctx.stroke();
+            
+            // Height line (right)
+            ctx.beginPath();
+            ctx.moveTo(x + width + 10, y);
+            ctx.lineTo(x + width + 10, y + height);
+            ctx.stroke();
+            
+            ctx.setLineDash([]);
+            
+            // Draw arrows
+            drawArrow(x, y - 10, x + width, y - 10, '#ff1744');
+            drawArrow(x + width + 10, y, x + width + 10, y + height, '#ff1744');
+        }
+
+        function drawArrow(x1, y1, x2, y2, color) {
+            const headlen = 10;
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+            
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = 2;
+            
+            // Arrow at end
+            ctx.beginPath();
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - headlen * Math.cos(angle - Math.PI/6), y2 - headlen * Math.sin(angle - Math.PI/6));
+            ctx.lineTo(x2 - headlen * Math.cos(angle + Math.PI/6), y2 - headlen * Math.sin(angle + Math.PI/6));
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function calculateMeasurements() {
+            const refType = document.getElementById('referenceObject').value;
+            const refSize = REFERENCE_SIZES[refType];
+            
+            // Update custom size if needed
+            if (refType === 'custom') {
+                refSize.width = parseFloat(document.getElementById('customWidth').value) || 50;
+            }
+
+            // Find reference object - for demo, we'll use the largest rectangular object
+            // In production, user would click to select reference
+            let refObj = null;
+            let maxArea = 0;
+            
+            detectedObjects.forEach(obj => {
+                const area = obj.bbox[2] * obj.bbox[3];
+                if (area > maxArea) {
+                    maxArea = area;
+                    refObj = obj;
+                }
+            });
+
+            if (!refObj) return;
+
+            // Calculate pixel to mm ratio based on reference object width
+            const refWidthPx = refObj.bbox[2];
+            pixelToMmRatio = refSize.width / refWidthPx;
+            
+            refObj.isReference = true;
+            refObj.widthMm = refSize.width;
+            refObj.heightMm = (refObj.bbox[3] * pixelToMmRatio).toFixed(1);
+            referenceObj = refObj;
+
+            // Calculate dimensions for all other objects
+            detectedObjects.forEach(obj => {
+                if (!obj.isReference) {
+                    obj.widthMm = (obj.bbox[2] * pixelToMmRatio).toFixed(1);
+                    obj.heightMm = (obj.bbox[3] * pixelToMmRatio).toFixed(1);
+                }
+            });
+
+            displayResults();
+        }
+
+        function calculateDistances() {
+            const results = [];
+            
+            for (let i = 0; i < detectedObjects.length; i++) {
+                for (let j = i + 1; j < detectedObjects.length; j++) {
+                    const obj1 = detectedObjects[i];
+                    const obj2 = detectedObjects[j];
+                    
+                    // Calculate center-to-center distance
+                    const center1 = {
+                        x: obj1.bbox[0] + obj1.bbox[2]/2,
+                        y: obj1.bbox[1] + obj1.bbox[3]/2
+                    };
+                    const center2 = {
+                        x: obj2.bbox[0] + obj2.bbox[2]/2,
+                        y: obj2.bbox[1] + obj2.bbox[3]/2
+                    };
+                    
+                    const pixelDist = Math.sqrt(
+                        Math.pow(center2.x - center1.x, 2) + 
+                        Math.pow(center2.y - center1.y, 2)
+                    );
+                    
+                    const mmDist = (pixelDist * pixelToMmRatio).toFixed(1);
+                    
+                    // Draw distance line
+                    ctx.strokeStyle = '#7b2cbf';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([10, 5]);
+                    ctx.beginPath();
+                    ctx.moveTo(center1.x, center1.y);
+                    ctx.lineTo(center2.x, center2.y);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    
+                    // Draw distance label at midpoint
+                    const midX = (center1.x + center2.x) / 2;
+                    const midY = (center1.y + center2.y) / 2;
+                    
+                    ctx.fillStyle = 'rgba(123, 44, 191, 0.9)';
+                    ctx.fillRect(midX - 40, midY - 12, 80, 24);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`${mmDist} mm`, midX, midY + 4);
+                    ctx.textAlign = 'left';
+                    
+                    results.push({
+                        obj1: obj1.class,
+                        obj2: obj2.class,
+                        distance: mmDist
+                    });
+                }
+            }
+            
+            displayDistanceResults(results);
+        }
+
+        // ==================== DISPLAY FUNCTIONS ====================
+        function displayResults() {
+            const container = document.getElementById('resultsContainer');
+            
+            if (detectedObjects.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <line x1="3" y1="9" x2="21" y2="9"/>
+                            <line x1="9" y1="21" x2="9" y2="9"/>
+                        </svg>
+                        <p>Belum ada pengukuran. Klik "Ukur Objek" untuk memulai.</p>
+                    </div>`;
+                return;
+            }
+
+            let html = '';
+            detectedObjects.forEach((obj, index) => {
+                const refBadge = obj.isReference ? '<span style="color:#00c853;font-size:0.8em;"> 📏 REFERENSI</span>' : '';
+                
+                html += `
+                    <div class="result-item">
+                        <div class="obj-name">#${index + 1} ${obj.class}${refBadge}</div>
+                        <div class="dimensions">
+                            <div class="dim-box">↔️ Lebar: <span>${obj.widthMm} mm</span></div>
+                            <div class="dim-box">↕️ Tinggi: <span>${obj.heightMm} mm</span></div>
+                            <div class="dim-box">📐 Luas: <span>${(obj.widthMm * obj.heightMm / 100).toFixed(2)} cm²</span></div>
                         </div>
                     </div>
                 `;
-            }
-        }
-
-        function initOrientation() {
-            if (window.DeviceOrientationEvent) {
-                window.addEventListener('deviceorientation', (e) => {
-                    state.deviceOrientation = {
-                        beta: e.beta || 0,
-                        gamma: e.gamma || 0
-                    };
-                    if (state.mode === 'level') updateLevel();
-                });
-            }
-        }
-
-        function updateLevel() {
-            const bubble = document.getElementById('levelBubble');
-            const valueEl = document.getElementById('levelValue');
-            const beta = state.deviceOrientation.beta;
-            const gamma = state.deviceOrientation.gamma;
-
-            const maxOffset = 70;
-            const x = Math.max(-maxOffset, Math.min(maxOffset, gamma * 2));
-            const y = Math.max(-maxOffset, Math.min(maxOffset, beta * 2));
-
-            bubble.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
-
-            const isLevel = Math.abs(beta) < 1.5 && Math.abs(gamma) < 1.5;
-            bubble.classList.toggle('off-level', !isLevel);
-
-            const angle = Math.sqrt(beta * beta + gamma * gamma).toFixed(1);
-            valueEl.textContent = `${angle}°`;
-            valueEl.style.color = isLevel ? '#34D399' : '#F59E0B';
-        }
-
-        function getDistance(p1, p2) {
-            const dx = p2.x - p1.x;
-            const dy = p2.y - p1.y;
-            return Math.sqrt(dx * dx + dy * dy);
-        }
-
-        function pixelsToReal(pixels) {
-            if (!state.calibration.isCalibrated || !state.calibration.pixelsPerMeter) {
-                return pixels * 0.001;
-            }
-            return pixels / state.calibration.pixelsPerMeter;
-        }
-
-        function formatValue(value) {
-            if (state.unit === 'cm') return (value * 100).toFixed(1);
-            if (state.unit === 'ft') return (value * 3.28084).toFixed(2);
-            if (state.unit === 'in') return (value * 39.3701).toFixed(2);
-            if (value < 1) return value.toFixed(3);
-            return value.toFixed(2);
-        }
-
-        function getUnitLabel() {
-            const labels = { m: 'm', cm: 'cm', ft: 'ft', in: 'in' };
-            return labels[state.unit];
-        }
-
-        function drawPoint(x, y, label, color = '#007AFF') {
-            ctx.beginPath();
-            ctx.arc(x, y, 10, 0, Math.PI * 2);
-            ctx.fillStyle = color + '40';
-            ctx.fill();
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 3;
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.arc(x, y, 3, 0, Math.PI * 2);
-            ctx.fillStyle = color;
-            ctx.fill();
-
-            if (label) {
-                ctx.fillStyle = color;
-                ctx.font = 'bold 13px -apple-system, sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText(label, x, y - 18);
-            }
-        }
-
-        function drawLine(p1, p2, color = '#007AFF', width = 3) {
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.strokeStyle = color;
-            ctx.lineWidth = width;
-            ctx.lineCap = 'round';
-            ctx.stroke();
-
-            const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-            const arrowSize = 10;
+            });
             
-            [p1, p2].forEach((p, i) => {
-                const a = i === 0 ? angle + Math.PI : angle;
-                ctx.beginPath();
-                ctx.moveTo(p.x, p.y);
-                ctx.lineTo(
-                    p.x - arrowSize * Math.cos(a - 0.5),
-                    p.y - arrowSize * Math.sin(a - 0.5)
+            container.innerHTML = html;
+        }
+
+        function displayDistanceResults(results) {
+            const panel = document.getElementById('distancePanel');
+            panel.style.display = 'block';
+            
+            if (results.length > 0) {
+                // Show the smallest distance (closest pair)
+                const closest = results.reduce((min, curr) => 
+                    parseFloat(curr.distance) < parseFloat(min.distance) ? curr : min
                 );
-                ctx.moveTo(p.x, p.y);
-                ctx.lineTo(
-                    p.x - arrowSize * Math.cos(a + 0.5),
-                    p.y - arrowSize * Math.sin(a + 0.5)
-                );
-                ctx.strokeStyle = color;
-                ctx.lineWidth = 2;
-                ctx.stroke();
-            });
-        }
-
-        function drawMeasurementLabel(p1, p2, pixels) {
-            const midX = (p1.x + p2.x) / 2;
-            const midY = (p1.y + p2.y) / 2;
-            const realValue = pixelsToReal(pixels);
-            const value = formatValue(realValue);
-            const label = `${value} ${getUnitLabel()}`;
-
-            ctx.font = 'bold 16px -apple-system, sans-serif';
-            const textWidth = ctx.measureText(label).width;
-            const padding = 12;
-            const boxWidth = textWidth + padding * 2;
-            const boxHeight = 32;
-
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-            ctx.beginPath();
-            ctx.moveTo(midX - boxWidth/2 + 16, midY - boxHeight/2);
-            ctx.lineTo(midX + boxWidth/2 - 16, midY - boxHeight/2);
-            ctx.quadraticCurveTo(midX + boxWidth/2, midY - boxHeight/2, midX + boxWidth/2, midY - boxHeight/2 + 16);
-            ctx.lineTo(midX + boxWidth/2, midY + boxHeight/2 - 16);
-            ctx.quadraticCurveTo(midX + boxWidth/2, midY + boxHeight/2, midX + boxWidth/2 - 16, midY + boxHeight/2);
-            ctx.lineTo(midX - boxWidth/2 + 16, midY + boxHeight/2);
-            ctx.quadraticCurveTo(midX - boxWidth/2, midY + boxHeight/2, midX - boxWidth/2, midY + boxHeight/2 - 16);
-            ctx.lineTo(midX - boxWidth/2, midY - boxHeight/2 + 16);
-            ctx.quadraticCurveTo(midX - boxWidth/2, midY - boxHeight/2, midX - boxWidth/2 + 16, midY - boxHeight/2);
-            ctx.closePath();
-            ctx.fill();
-
-            ctx.strokeStyle = '#34D399';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            ctx.fillStyle = '#34D399';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(label, midX, midY);
-        }
-
-        function drawArea() {
-            if (state.points.length < 3) return;
-
-            ctx.beginPath();
-            ctx.moveTo(state.points[0].x, state.points[0].y);
-            for (let i = 1; i < state.points.length; i++) {
-                ctx.lineTo(state.points[i].x, state.points[i].y);
-            }
-            ctx.closePath();
-
-            ctx.fillStyle = 'rgba(0, 122, 255, 0.15)';
-            ctx.fill();
-            ctx.strokeStyle = '#007AFF';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([8, 6]);
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            let area = 0;
-            for (let i = 0; i < state.points.length; i++) {
-                const j = (i + 1) % state.points.length;
-                area += state.points[i].x * state.points[j].y;
-                area -= state.points[j].x * state.points[i].y;
-            }
-            area = Math.abs(area) / 2;
-
-            const realArea = area / (state.calibration.pixelsPerMeter ** 2);
-            let displayArea = realArea;
-            let unit2 = 'm²';
-
-            if (state.unit === 'cm') { displayArea *= 10000; unit2 = 'cm²'; }
-            else if (state.unit === 'ft') { displayArea *= 10.764; unit2 = 'ft²'; }
-            else if (state.unit === 'in') { displayArea *= 1550; unit2 = 'in²'; }
-
-            const centroid = getCentroid(state.points);
-            const label = `${displayArea.toFixed(2)} ${unit2}`;
-
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.beginPath();
-            ctx.arc(centroid.x, centroid.y, 45, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = '#34D399';
-            ctx.font = 'bold 15px -apple-system, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(label, centroid.x, centroid.y);
-        }
-
-        function getCentroid(points) {
-            let x = 0, y = 0;
-            points.forEach(p => { x += p.x; y += p.y; });
-            return { x: x / points.length, y: y / points.length };
-        }
-
-        function redrawCanvas() {
-            if (!state.canvasReady) return;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            for (let i = 0; i < state.points.length - 1; i++) {
-                const p1 = state.points[i];
-                const p2 = state.points[i + 1];
-                drawLine(p1, p2);
-                const dist = getDistance(p1, p2);
-                drawMeasurementLabel(p1, p2, dist);
-            }
-
-            state.points.forEach((p, i) => {
-                drawPoint(p.x, p.y, `${i + 1}`);
-            });
-
-            if (state.mode === 'area' && state.points.length >= 3) {
-                drawArea();
-            }
-
-            if (state.isCalibrating && state.tempPoints.length === 2) {
-                drawLine(state.tempPoints[0], state.tempPoints[1], '#F59E0B', 4);
-                const dist = getDistance(state.tempPoints[0], state.tempPoints[1]);
-                const midX = (state.tempPoints[0].x + state.tempPoints[1].x) / 2;
-                const midY = (state.tempPoints[0].y + state.tempPoints[1].y) / 2;
-                
-                ctx.fillStyle = 'rgba(245, 158, 11, 0.9)';
-                ctx.font = 'bold 14px -apple-system, sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText(`${Math.round(dist)} px`, midX, midY - 20);
+                document.getElementById('distanceValue').textContent = closest.distance;
+                document.getElementById('distanceUnit').textContent = 
+                    `mm (${closest.obj1} ↔ ${closest.obj2})`;
             }
         }
 
-        function getCanvasPoint(e) {
+        // ==================== MANUAL MODE ====================
+        function toggleManualMode() {
+            manualMode = !manualMode;
+            document.getElementById('toggleManual').classList.toggle('active');
+            
+            if (manualMode) {
+                log('Mode manual aktif. Klik 2 titik pada video untuk mengukur.', 'info');
+                canvas.style.pointerEvents = 'auto';
+                canvas.addEventListener('click', handleManualClick);
+            } else {
+                log('Mode manual nonaktif.', 'info');
+                canvas.style.pointerEvents = 'none';
+                canvas.removeEventListener('click', handleManualClick);
+                manualPoints = [];
+                if (!isDetecting) ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        function handleManualClick(e) {
             const rect = canvas.getBoundingClientRect();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
             
-            const x = (clientX - rect.left) * (canvas.width / rect.width);
-            const y = (clientY - rect.top) * (canvas.height / rect.height);
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
             
-            return { x, y };
-        }
-
-        function handleTap(e) {
-            if (state.mode === 'level') return;
-            if (document.getElementById('calModal').classList.contains('active')) return;
-            if (document.getElementById('historyPanel').classList.contains('active')) return;
-
-            e.preventDefault();
-            const point = getCanvasPoint(e);
-
-            if (state.isCalibrating) {
-                handleCalibrationTap(point);
-                return;
-            }
-
-            if (state.mode === 'distance') {
-                handleDistanceMode(point);
-            } else if (state.mode === 'area') {
-                handleAreaMode(point);
-            }
-
-            redrawCanvas();
-            updateUI();
-        }
-
-        function handleDistanceMode(point) {
-            if (state.points.length >= 2) {
-                saveMeasurement();
-                state.points = [point];
-                updateInstruction('Ketik titik kedua untuk jarak baru');
-            } else if (state.points.length === 0) {
-                state.points.push(point);
-                updateInstruction('Ketik titik kedua');
-            } else {
-                state.points.push(point);
-                const dist = getDistance(state.points[0], state.points[1]);
-                const realDist = pixelsToReal(dist);
-                document.getElementById('currentValue').textContent = formatValue(realDist);
-                updateInstruction('Ketik lagi untuk ukur baru');
-            }
-        }
-
-        function handleAreaMode(point) {
-            state.points.push(point);
-            if (state.points.length >= 3) {
-                updateInstruction(`Titik ${state.points.length} - Ketik lagi atau simpan`);
-            } else {
-                updateInstruction(`Ketik titik ${state.points.length + 1}`);
-            }
-        }
-
-        function handleCalibrationTap(point) {
-            if (state.tempPoints.length === 0) {
-                state.tempPoints.push(point);
-                updateInstruction('Ketik ujung lain objek referensi');
-            } else if (state.tempPoints.length === 1) {
-                state.tempPoints.push(point);
-                const pixelDist = getDistance(state.tempPoints[0], state.tempPoints[1]);
-                const refSize = state.calReference.width;
-                state.calibration.pixelsPerMeter = pixelDist / refSize;
-                state.calibration.isCalibrated = true;
-                state.calibration.referenceName = state.calReference.name;
-                state.calibration.referenceSize = refSize;
+            manualPoints.push({ x, y });
+            
+            // Draw point
+            ctx.fillStyle = '#00d4ff';
+            ctx.beginPath();
+            ctx.arc(x, y, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 14px Arial';
+            ctx.fillText(manualPoints.length, x + 10, y);
+            
+            if (manualPoints.length === 2) {
+                // Draw line and calculate distance
+                const p1 = manualPoints[0];
+                const p2 = manualPoints[1];
                 
-                finishCalibration();
-            }
-            redrawCanvas();
-        }
-
-        function startCalibration(refKey) {
-            state.calReference = REFERENCE_OBJECTS[refKey];
-            state.isCalibrating = true;
-            state.tempPoints = [];
-            state.points = [];
-            
-            document.getElementById('calModal').classList.remove('active');
-            document.getElementById('guideOverlay').classList.add('active');
-            
-            const guideText = document.getElementById('guideText');
-            guideText.innerHTML = `Letakkan <b>${state.calReference.name}</b> di dalam bingkai<br>Sejajarkan dengan kamera`;
-            
-            updateInstruction('Ketik ujung kiri objek');
-        }
-
-        function finishCalibration() {
-            state.isCalibrating = false;
-            state.tempPoints = [];
-            document.getElementById('guideOverlay').classList.remove('active');
-            
-            const badge = document.getElementById('calBadge');
-            const calText = document.getElementById('calText');
-            badge.classList.add('calibrated');
-            calText.textContent = `Terkalibrasi: ${state.calReference.name}`;
-            
-            showToast(`Kalibrasi berhasil! ${state.calReference.name}`);
-            redrawCanvas();
-            updateInstruction('Kalibrasi selesai, mulai mengukur!');
-        }
-
-        function resetCalibration() {
-            state.calibration = {
-                isCalibrated: false,
-                pixelsPerMeter: null,
-                referenceName: '',
-                referenceSize: 0
-            };
-            
-            const badge = document.getElementById('calBadge');
-            const calText = document.getElementById('calText');
-            badge.classList.remove('calibrated');
-            calText.textContent = 'Kalibrasi diperlukan';
-            
-            showToast('Kalibrasi direset');
-        }
-
-        function saveMeasurement() {
-            if (state.points.length < 2) return;
-
-            let type, value, unit;
-            
-            if (state.mode === 'distance') {
-                const dist = getDistance(state.points[0], state.points[1]);
-                const realDist = pixelsToReal(dist);
-                type = 'Jarak';
-                value = formatValue(realDist);
-                unit = getUnitLabel();
-            } else if (state.mode === 'area' && state.points.length >= 3) {
-                let area = 0;
-                for (let i = 0; i < state.points.length; i++) {
-                    const j = (i + 1) % state.points.length;
-                    area += state.points[i].x * state.points[j].y;
-                    area -= state.points[j].x * state.points[i].y;
-                }
-                area = Math.abs(area) / 2;
-                const realArea = area / (state.calibration.pixelsPerMeter ** 2);
-                let displayArea = realArea;
-                unit = state.unit === 'm' ? 'm²' : 
-                       state.unit === 'cm' ? 'cm²' : 
-                       state.unit === 'ft' ? 'ft²' : 'in²';
-                if (state.unit === 'cm') displayArea *= 10000;
-                else if (state.unit === 'ft') displayArea *= 10.764;
-                else if (state.unit === 'in') displayArea *= 1550;
-                type = 'Area';
-                value = displayArea.toFixed(2);
-            } else {
-                return;
-            }
-
-            const measurement = {
-                id: Date.now(),
-                type,
-                value,
-                unit,
-                timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-            };
-
-            state.measurements.unshift(measurement);
-            updateHistoryList();
-            showToast(`${type}: ${value} ${unit}`);
-            
-            const captureBtn = document.getElementById('captureBtn');
-            captureBtn.classList.add('save-mode');
-            setTimeout(() => captureBtn.classList.remove('save-mode'), 300);
-        }
-
-        function updateHistoryList() {
-            const list = document.getElementById('historyList');
-            if (state.measurements.length === 0) {
-                list.innerHTML = '<div class="history-empty">Belum ada pengukuran</div>';
-                return;
-            }
-
-            list.innerHTML = state.measurements.map(m => `
-                <div class="history-item">
-                    <div class="history-info">
-                        <span class="history-type">${m.type}</span>
-                        <span class="history-time">${m.timestamp}</span>
-                    </div>
-                    <span class="history-value">${m.value} ${m.unit}</span>
-                </div>
-            `).join('');
-        }
-
-        function updateInstruction(text) {
-            document.getElementById('instructions').textContent = text;
-        }
-
-        function updateUI() {
-            document.getElementById('undoBtn').disabled = state.points.length === 0 && state.tempPoints.length === 0;
-        }
-
-        function showToast(message) {
-            toast.textContent = message;
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 2500);
-        }
-
-        function takeScreenshot() {
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = canvas.width;
-            tempCanvas.height = canvas.height;
-            const tempCtx = tempCanvas.getContext('2d');
-            
-            tempCtx.drawImage(video, 0, 0);
-            tempCtx.drawImage(canvas, 0, 0);
-            
-            tempCtx.fillStyle = 'rgba(255,255,255,0.8)';
-            tempCtx.font = '12px -apple-system, sans-serif';
-            tempCtx.fillText('AR Measure Pro', 20, canvas.height - 20);
-            
-            const link = document.createElement('a');
-            link.download = `measure_${Date.now()}.jpg`;
-            link.href = tempCanvas.toDataURL('image/jpeg', 0.92);
-            link.click();
-            
-            showToast('Screenshot tersimpan!');
-        }
-
-        canvas.addEventListener('click', handleTap);
-        canvas.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) handleTap(e);
-        }, { passive: false });
-
-        document.querySelectorAll('.mode-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                state.mode = btn.dataset.mode;
-                state.points = [];
-                state.tempPoints = [];
-                redrawCanvas();
-
-                const crosshair = document.getElementById('crosshairContainer');
-                const level = document.getElementById('levelContainer');
-                const display = document.getElementById('measurementDisplay');
-
-                if (state.mode === 'level') {
-                    crosshair.style.display = 'none';
-                    level.classList.add('active');
-                    display.style.opacity = '0.3';
-                    updateInstruction('Gunakan sebagai waterpas digital');
+                ctx.strokeStyle = '#00d4ff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+                
+                const pixelDist = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+                
+                // Need pixelToMmRatio - if not set, use a default or ask for reference
+                let mmDist;
+                if (pixelToMmRatio > 0) {
+                    mmDist = (pixelDist * pixelToMmRatio).toFixed(1);
                 } else {
-                    crosshair.style.display = 'block';
-                    level.classList.remove('active');
-                    display.style.opacity = '1';
-                    updateInstruction(state.mode === 'distance' 
-                        ? 'Ketuk untuk titik pertama' 
-                        : 'Ketuk untuk sudut pertama area');
+                    // Default approximation: assume 1px ≈ 0.26mm at standard distance
+                    mmDist = (pixelDist * 0.26).toFixed(1);
+                    log('Perhatian: Menggunakan estimasi default. Untuk akurasi, lakukan kalibrasi dengan objek referensi.', 'error');
                 }
-            });
-        });
+                
+                const midX = (p1.x + p2.x) / 2;
+                const midY = (p1.y + p2.y) / 2;
+                
+                ctx.fillStyle = 'rgba(0, 212, 255, 0.9)';
+                ctx.fillRect(midX - 50, midY - 15, 100, 30);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`${mmDist} mm`, midX, midY + 5);
+                ctx.textAlign = 'left';
+                
+                log(`Jarak manual: ${mmDist} mm`, 'success');
+                
+                // Reset for next measurement
+                setTimeout(() => {
+                    manualPoints = [];
+                    if (!isDetecting) ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }, 3000);
+            }
+        }
 
-        document.getElementById('unitToggle').addEventListener('click', () => {
-            const units = ['m', 'cm', 'ft', 'in'];
-            const idx = units.indexOf(state.unit);
-            state.unit = units[(idx + 1) % units.length];
-            document.getElementById('unitToggle').textContent = getUnitLabel();
+        // ==================== DISTANCE MODE ====================
+        function toggleDistanceMode() {
+            distanceMode = !distanceMode;
+            document.getElementById('toggleDistance').classList.toggle('active');
+            document.getElementById('distancePanel').style.display = distanceMode ? 'block' : 'none';
             
-            if (state.points.length >= 2 && state.mode === 'distance') {
-                const dist = getDistance(state.points[0], state.points[1]);
-                document.getElementById('currentValue').textContent = formatValue(pixelsToReal(dist));
-            }
-            redrawCanvas();
-        });
-
-        document.getElementById('captureBtn').addEventListener('click', () => {
-            if (state.mode === 'area' && state.points.length >= 3) {
-                saveMeasurement();
-                state.points = [];
-                redrawCanvas();
-                updateInstruction('Area tersimpan! Ketik untuk baru');
-            } else if (state.mode === 'distance' && state.points.length === 2) {
-                saveMeasurement();
-                state.points = [];
-                document.getElementById('currentValue').textContent = '0.00';
-                updateInstruction('Jarak tersimpan! Ketik untuk baru');
+            if (distanceMode) {
+                log('Mode jarak antar objek aktif.', 'info');
             } else {
-                takeScreenshot();
+                log('Mode jarak antar objek nonaktif.', 'info');
             }
-        });
+        }
 
-        document.getElementById('undoBtn').addEventListener('click', () => {
-            if (state.isCalibrating && state.tempPoints.length > 0) {
-                state.tempPoints.pop();
-            } else if (state.points.length > 0) {
-                state.points.pop();
-                if (state.points.length === 0) {
-                    document.getElementById('currentValue').textContent = '0.00';
-                }
+        // ==================== UTILITY FUNCTIONS ====================
+        function updateReference() {
+            const refType = document.getElementById('referenceObject').value;
+            document.getElementById('customSizeGroup').style.display = 
+                refType === 'custom' ? 'block' : 'none';
+            
+            const ref = REFERENCE_SIZES[refType];
+            log(`Objek referensi: ${ref.name} (${ref.width} mm)`, 'info');
+        }
+
+        function resetMeasurement() {
+            detectedObjects = [];
+            pixelToMmRatio = 0;
+            manualPoints = [];
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('resultsContainer').innerHTML = `
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <line x1="3" y1="9" x2="21" y2="9"/>
+                        <line x1="9" y1="21" x2="9" y2="9"/>
+                    </svg>
+                    <p>Pengukuran direset. Klik "Ukur Objek" untuk memulai lagi.</p>
+                </div>`;
+            document.getElementById('distanceValue').textContent = '-';
+            document.getElementById('distanceUnit').textContent = 'mm';
+            log('Pengukuran direset.', 'info');
+        }
+
+        function updateStatus(id, state, text) {
+            const el = document.getElementById(id);
+            el.className = 'status ' + state;
+            el.textContent = text;
+        }
+
+        function log(message, type = 'info') {
+            const container = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const time = new Date().toLocaleTimeString('id-ID');
+            entry.textContent = `[${time}] ${message}`;
+            container.insertBefore(entry, container.firstChild);
+            
+            // Keep only last 20 entries
+            while (container.children.length > 20) {
+                container.removeChild(container.lastChild);
             }
-            redrawCanvas();
-            updateUI();
-        });
+        }
 
-        document.getElementById('clearBtn').addEventListener('click', () => {
-            state.points = [];
-            state.tempPoints = [];
-            redrawCanvas();
-            document.getElementById('currentValue').textContent = '0.00';
-            updateInstruction('Ketik untuk memulai');
-            updateUI();
-        });
-
-        document.getElementById('flashBtn').addEventListener('click', async () => {
-            if (!state.stream) return;
-            const track = state.stream.getVideoTracks()[0];
-            try {
-                const capabilities = track.getCapabilities();
-                if (capabilities.torch) {
-                    const settings = track.getSettings();
-                    const newTorch = !settings.torch;
-                    await track.applyConstraints({ advanced: [{ torch: newTorch }] });
-                    document.getElementById('flashBtn').classList.toggle('active-state', newTorch);
-                    showToast(newTorch ? 'Flash menyala' : 'Flash mati');
-                } else {
-                    showToast('Flash tidak didukung');
-                }
-            } catch (err) {
-                showToast('Gagal mengontrol flash');
-            }
-        });
-
-        document.getElementById('calBadge').addEventListener('click', () => {
-            document.getElementById('calModal').classList.add('active');
-        });
-
-        document.querySelectorAll('.cal-option').forEach(opt => {
-            opt.addEventListener('click', () => {
-                startCalibration(opt.dataset.ref);
-            });
-        });
-
-        document.getElementById('guideConfirm').addEventListener('click', () => {
-            document.getElementById('guideOverlay').classList.remove('active');
-            updateInstruction('Ketik ujung kiri objek referensi');
-        });
-
-        document.getElementById('guideCancel').addEventListener('click', () => {
-            state.isCalibrating = false;
-            state.tempPoints = [];
-            state.calReference = null;
-            document.getElementById('guideOverlay').classList.remove('active');
-            redrawCanvas();
-            updateInstruction('Kalibrasi dibatalkan');
-        });
-
-        document.getElementById('manualCalBtn').addEventListener('click', () => {
-            const dist = parseFloat(document.getElementById('manualDistance').value);
-            if (dist && dist > 0) {
-                state.calibration.pixelsPerMeter = 1000 / dist;
-                state.calibration.isCalibrated = true;
-                state.calibration.referenceName = 'Manual';
-                state.calibration.referenceSize = dist;
+        // ==================== REAL-TIME DETECTION (Optional) ====================
+        async function startRealTimeDetection() {
+            if (!model || !stream) return;
+            isDetecting = true;
+            
+            async function detectFrame() {
+                if (!isDetecting) return;
                 
-                const badge = document.getElementById('calBadge');
-                const calText = document.getElementById('calText');
-                badge.classList.add('calibrated');
-                calText.textContent = `Terkalibrasi: ${dist}m manual`;
+                const predictions = await model.detect(video);
+                const threshold = document.getElementById('confidenceThreshold').value / 100;
+                const filtered = predictions.filter(p => p.score >= threshold);
                 
-                document.getElementById('calModal').classList.remove('active');
-                showToast('Kalibrasi manual berhasil!');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                filtered.forEach(pred => {
+                    const [x, y, width, height] = pred.bbox;
+                    ctx.strokeStyle = '#00d4ff';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x, y, width, height);
+                    
+                    ctx.fillStyle = 'rgba(0, 212, 255, 0.7)';
+                    ctx.fillRect(x, y - 20, 120, 20);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '12px Arial';
+                    ctx.fillText(`${pred.class} ${(pred.score*100).toFixed(0)}%`, x + 5, y - 5);
+                });
+                
+                requestAnimationFrame(detectFrame);
             }
-        });
+            
+            detectFrame();
+        }
 
-        document.getElementById('resetCalBtn').addEventListener('click', () => {
-            resetCalibration();
-        });
-
-        document.getElementById('closeCalModal').addEventListener('click', () => {
-            document.getElementById('calModal').classList.remove('active');
-        });
-
-        document.getElementById('historyBtn').addEventListener('click', () => {
-            document.getElementById('historyPanel').classList.add('active');
-        });
-
-        document.getElementById('closeHistory').addEventListener('click', () => {
-            document.getElementById('historyPanel').classList.remove('active');
-        });
-
-        document.getElementById('calModal').addEventListener('click', (e) => {
-            if (e.target === e.currentTarget) {
-                e.currentTarget.classList.remove('active');
-            }
-        });
-
-        let lastTouchEnd = 0;
-        document.addEventListener('touchend', (e) => {
-            const now = Date.now();
-            if (now - lastTouchEnd <= 300) e.preventDefault();
-            lastTouchEnd = now;
-        }, { passive: false });
-
-        document.addEventListener('contextmenu', e => e.preventDefault());
-
-        initCamera();
-        initOrientation();
+        // ==================== INIT ====================
+        window.addEventListener('load', init);
     </script>
 </body>
 </html>
